@@ -1,0 +1,7 @@
+if (!requireNamespace("remotes"))
+  install.packages("remotes")
+remotes::install_github("astamm/fastGHQuad")
+ghRules <- purrr::map(2^(1:20), fastGHQuad::gaussHermiteData)
+piPowerOneOverTwo <- sqrt(pi)
+piPowerOneOverFour <- sqrt(piPowerOneOverTwo)
+usethis::use_data(ghRules, piPowerOneOverTwo, piPowerOneOverFour, internal = TRUE, overwrite = TRUE)
