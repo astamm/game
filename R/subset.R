@@ -56,3 +56,32 @@
 
   x
 }
+
+subset_impl <- function(x, n, i, j) {
+  purrr::map2_dbl(i, j, ~ {
+    if (.x == .y) return(0)
+    if (.x > .y) {
+      k <- .x
+      .x <- .y
+      .y <- k
+    }
+    x[n*(.x-1) - .x*(.x-1)/2 + .y-.x]
+  })
+}
+
+`[.dist` <- function(x, i, j, ..., drop = TRUE) {
+  if (missing(i) && missing(j)) return(x)
+  n <- attr(x, "Size")
+  if (missing(j)) j <- 1:n
+  if (missing(i)) i <- 1:n
+  x <- as.numeric(x)
+  outer(i, j, subset_impl, x = x, n = n)
+}
+
+dist_to_centroid <- function(i, j, d2, m) {
+  n <- sum(m == j)
+  idx <- which(m == j)
+  term1 <- sum(d2[i, idx])
+  term2 <- sum(d2[idx, idx])
+  (term1 - term2 / (2 * n)) / n
+}

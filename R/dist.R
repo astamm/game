@@ -68,13 +68,15 @@ dist.sgd <- function(x, ref_mean = 0, ref_precision = 1) {
 #' @describeIn dist Implementation for Gaussian Mixture Data (stored in objects
 #'   of class \code{\link{gmd}}).
 #' @export
-dist.gmd <- function(x, reference_index = 0, rule = ghRules[[20]]) {
-  tmp <- unfold_gmd(x)
-  d <- GetSquaredDistanceMatrix(tmp$data, tmp$data[[reference_index]], rule$x, rule$w);
+dist.gmd <- function(x, rule = 2, squared = TRUE) {
+  x <- unfold_gmd(x)
+  rule = ghRules[[rule]]
+  d <- GetSquaredDistanceMatrix(x$data, rule$x, rule$w);
+  if (!squared) d <- sqrt(d)
   attributes(d) <- NULL
-  nm <- tmp$observation
+  nm <- x$observation
   attr(d, "Labels") <- nm
-  attr(d, "Size") <- nrow(tmp)
+  attr(d, "Size") <- nrow(x)
   attr(d, "call") <- match.call()
   class(d) <- "dist"
   d

@@ -14,7 +14,7 @@ dist(x, ...)
 
 \method{dist}{sgd}(x, ref_mean = 0, ref_precision = 1)
 
-\method{dist}{gmd}(x, reference_index = 0, rule = ghRules[[20]])
+\method{dist}{gmd}(x, rule = 2, squared = TRUE)
 }
 \arguments{
 \item{x}{Either a numeric matrix, a data frame, a \code{\link[stats]{dist}}

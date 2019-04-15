@@ -52,3 +52,17 @@ mean.gmd <- function(x, trim = 0, na.rm = TRUE, log = TRUE, normalize = FALSE) {
   K <- integrate(f, lower = -350, upper = 350)$value
   function(t) {f(t) / K}
 }
+
+#' @export
+mean_expval <- function(x, rule = 2) {
+  x <- unfold_gmd(x)
+  rule <- ghRules[[rule]]
+  GetMeanExpectedValue(x$data, rule$x, rule$w)
+}
+
+#' @export
+mean_k <- function(x, rule = 2) {
+  x <- unfold_gmd(x)
+  rule <- ghRules[[rule]]
+  GetMeanNormalizationFactor(x$data, rule$x, rule$w)
+}
