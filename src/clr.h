@@ -20,14 +20,9 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
         const Rcpp::NumericVector &weightValues);
 
 // [[Rcpp::export]]
-double GetMeanNormalizationFactor(
+double GetMeanRawMoment(
         const Rcpp::List &inputData,
-        const Rcpp::NumericVector &nodeValues,
-        const Rcpp::NumericVector &weightValues);
-
-// [[Rcpp::export]]
-double GetMeanExpectedValue(
-        const Rcpp::List &inputData,
+        const unsigned int order,
         const Rcpp::NumericVector &nodeValues,
         const Rcpp::NumericVector &weightValues);
 
@@ -75,6 +70,7 @@ double GetSquaredDistance(
         const std::vector<double> &referenceMeanValues,
         const std::vector<double> &referencePrecisionValues,
         const std::vector<double> &referenceMixingValues,
+        const unsigned int numComponents,
         const Rcpp::NumericVector &nodeValues,
         const Rcpp::NumericVector &weightValues,
         std::vector<double> &workVector);

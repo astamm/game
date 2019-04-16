@@ -13,12 +13,8 @@ GetSquaredDistanceMatrix <- function(inputData, nodeValues, weightValues) {
     .Call('_game_GetSquaredDistanceMatrix', PACKAGE = 'game', inputData, nodeValues, weightValues)
 }
 
-GetMeanNormalizationFactor <- function(inputData, nodeValues, weightValues) {
-    .Call('_game_GetMeanNormalizationFactor', PACKAGE = 'game', inputData, nodeValues, weightValues)
-}
-
-GetMeanExpectedValue <- function(inputData, nodeValues, weightValues) {
-    .Call('_game_GetMeanExpectedValue', PACKAGE = 'game', inputData, nodeValues, weightValues)
+GetMeanRawMoment <- function(inputData, order, nodeValues, weightValues) {
+    .Call('_game_GetMeanRawMoment', PACKAGE = 'game', inputData, order, nodeValues, weightValues)
 }
 
 PerformReassignment <- function(inputMemberships, inputModels, referenceModels, nodeValues, weightValues, alpha = 0.2) {

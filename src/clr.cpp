@@ -248,7 +248,7 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
       double workScalar = GetSquaredDistance(
         firstMeanValues, firstPrecisionValues, firstMixingValues,
         secondMeanValues, secondPrecisionValues, secondMixingValues,
-        referenceMeanValues, referencePrecisionValues, referenceMixingValues,
+        referenceMeanValues, referencePrecisionValues, referenceMixingValues, numComponents,
         nodeValues, weightValues, workVector);
 
       // workScalar += 1 * (firstModel.nrows() - secondModel.nrows()) * (firstModel.nrows() - secondModel.nrows());
@@ -259,8 +259,9 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
   return outputValues;
 }
 
-double GetMeanNormalizationFactor(
+double GetMeanRawMoment(
     const Rcpp::List &inputData,
+    const unsigned int order,
     const Rcpp::NumericVector &nodeValues,
     const Rcpp::NumericVector &weightValues)
 {
@@ -280,17 +281,19 @@ double GetMeanNormalizationFactor(
 
   // Now integrate to get normalization constant
   double totalIntegralValue = 0.0;
+  double kthTotalIntegralValue = 0.0;
 
   for (unsigned int i = 0;i < numComponents;++i)
   {
-    double mixingValue = referenceMixingValues[i];
+    double referenceMixingValue = referenceMixingValues[i];
     double integralValue = 0.0;
+    double kthIntegralValue = 0.0;
 
     for (unsigned int j = 0;j < numPoints;++j)
     {
       double nodeValue = nodeValues[j];
       double weightValue = weightValues[j];
-      double inputValue = referenceMeanValues[i] + std::sqrt(2.0 * referencePrecisionValues[i]) * nodeValue;
+      double inputValue = referenceMeanValues[i] + std::sqrt(2.0 / referencePrecisionValues[i]) * nodeValue;
 
       double logarithmArithmeticMean = 0.0;
       double arithmeticMeanLogarithm = 0.0;
@@ -311,91 +314,22 @@ double GetMeanNormalizationFactor(
       arithmeticMeanLogarithm /= numInputs;
       arithmeticMeanLogarithm = std::log(arithmeticMeanLogarithm);
 
-      integralValue += weightValue * std::exp(logarithmArithmeticMean - arithmeticMeanLogarithm);
+      double workScalar = std::exp(logarithmArithmeticMean - arithmeticMeanLogarithm);
+
+      integralValue += weightValue * workScalar;
+      if (order > 0)
+        kthIntegralValue += weightValue * workScalar * std::pow(inputValue, (double)order);
     }
 
-    totalIntegralValue += mixingValue * integralValue;
+    totalIntegralValue += referenceMixingValue * integralValue;
+    if (order > 0)
+      kthTotalIntegralValue += referenceMixingValue * kthIntegralValue;
   }
 
-  return totalIntegralValue;
+  return (order == 0) ? totalIntegralValue : kthTotalIntegralValue / totalIntegralValue;
 }
 
-// TO BE CHECKED
 // ADD GetSquaredDistanceToMean()
-double GetMeanExpectedValue(const Rcpp::List &inputData,
-                            const Rcpp::NumericVector &nodeValues,
-                            const Rcpp::NumericVector &weightValues)
-{
-  unsigned int numInputs = inputData.size();
-  unsigned int numPoints = nodeValues.size();
-
-  Rcpp::DataFrame inputModel;
-  Rcpp::NumericVector meanValues, precisionValues, mixingValues;
-  std::vector <double> workVector, logValues(numInputs);
-
-  // First define the reference Gaussian mixture wrt which integration will take place with GH.
-  // The best for accuracy is to concatenate all input mixture models into one.
-  // Note however that it is computationally expensive.
-
-  std::vector<double> referenceMeanValues, referencePrecisionValues, referenceMixingValues;
-  unsigned int numComponents = BuildReferenceModel(inputData, referenceMeanValues, referencePrecisionValues, referenceMixingValues);
-
-  // Now integrate
-
-  double totalIntegralValueUp = 0.0;
-  double totalIntegralValueDown = 0.0;
-
-  for (unsigned int i = 0;i < numComponents;++i)
-  {
-    double mixingValue = referenceMixingValues[i];
-    double integralValueUp = 0.0;
-    double integralValueDown = 0.0;
-
-    for (unsigned int j = 0;j < numPoints;++j)
-    {
-      double nodeValue = nodeValues[j];
-      double weightValue = weightValues[j];
-      double inputValue = referenceMeanValues[i] + std::sqrt(2.0 * referencePrecisionValues[i]) * nodeValue;
-      double maxLogValue = 0.0;
-
-      for (unsigned int k = 0;k < numInputs;++k)
-      {
-        inputModel = inputData[k];
-        meanValues = inputModel["mean"];
-        precisionValues = inputModel["precision"];
-        mixingValues = inputModel["mixing"];
-
-        double logValue = GetLogDensityValue(inputValue, meanValues, precisionValues, mixingValues, workVector);
-
-        if (logValue > maxLogValue || k == 0)
-          maxLogValue = logValue;
-
-        logValues[k] = logValue;
-      }
-
-      double numeratorValue = 0.0;
-      double denominatorValue = 0.0;
-
-      for (unsigned int k = 0;k < numInputs;++k)
-      {
-        numeratorValue += logValues[k];
-        denominatorValue += std::exp(logValues[k] - maxLogValue);
-      }
-
-      numeratorValue /= numInputs;
-      numeratorValue -= maxLogValue;
-      numeratorValue = std::exp(numeratorValue);
-
-      integralValueUp += weightValue * inputValue * numeratorValue / denominatorValue;
-      integralValueDown += weightValue * numeratorValue / denominatorValue;
-    }
-
-    totalIntegralValueUp += mixingValue * integralValueUp;
-    totalIntegralValueDown += mixingValue * integralValueDown;
-  }
-
-  return totalIntegralValueUp / totalIntegralValueDown;
-}
 
 Rcpp::List PerformReassignment(
   const Rcpp::IntegerVector &inputMemberships,
@@ -618,26 +552,26 @@ double GetSquaredDistance(
     const std::vector<double> &referenceMeanValues,
     const std::vector<double> &referencePrecisionValues,
     const std::vector<double> &referenceMixingValues,
+    const unsigned int numComponents,
     const Rcpp::NumericVector &nodeValues,
     const Rcpp::NumericVector &weightValues,
     std::vector<double> &workVector)
 {
   unsigned int numPoints = nodeValues.size();
-  unsigned int referenceNumComponents = referenceMeanValues.size();
 
   double totalLogIntegral = 0.0;
   double totalSquareLogIntegral = 0.0;
 
-  for (unsigned int j = 0;j < referenceNumComponents;++j)
+  for (unsigned int i = 0;i < numComponents;++i)
   {
     double logIntegral = 0.0;
     double squareLogIntegral = 0.0;
-    double referenceMixingValue = referenceMixingValues[j];
+    double referenceMixingValue = referenceMixingValues[i];
 
-    for (unsigned int k = 0;k < numPoints;++k)
+    for (unsigned int j = 0;j < numPoints;++j)
     {
-      double inputValue = referenceMeanValues[j] + std::sqrt(2.0 / referencePrecisionValues[j]) * nodeValues[k];
-      double weightValue = weightValues[k];
+      double inputValue = referenceMeanValues[i] + std::sqrt(2.0 / referencePrecisionValues[i]) * nodeValues[j];
+      double weightValue = weightValues[j];
 
       double logValue1 = GetLogDensityValue(inputValue, firstMeanValues, firstPrecisionValues, firstMixingValues, workVector);
       double logValue2 = GetLogDensityValue(inputValue, secondMeanValues, secondPrecisionValues, secondMixingValues, workVector);
@@ -681,8 +615,8 @@ unsigned int BuildReferenceModel(
     referencePrecisionValues.insert(referencePrecisionValues.end(), precisionValues.begin(), precisionValues.end());
 
     mixingValues = inputModel["mixing"];
-    for (unsigned int i = 0;i < internalNumComponents;++i)
-      mixingValues[i] /= numInputs;
+    for (unsigned int j = 0;j < internalNumComponents;++j)
+      mixingValues[j] /= numInputs;
     referenceMixingValues.insert(referenceMixingValues.end(), mixingValues.begin(), mixingValues.end());
 
     numComponents += internalNumComponents;

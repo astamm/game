@@ -45,29 +45,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// GetMeanNormalizationFactor
-double GetMeanNormalizationFactor(const Rcpp::List& inputData, const Rcpp::NumericVector& nodeValues, const Rcpp::NumericVector& weightValues);
-RcppExport SEXP _game_GetMeanNormalizationFactor(SEXP inputDataSEXP, SEXP nodeValuesSEXP, SEXP weightValuesSEXP) {
+// GetMeanRawMoment
+double GetMeanRawMoment(const Rcpp::List& inputData, const unsigned int order, const Rcpp::NumericVector& nodeValues, const Rcpp::NumericVector& weightValues);
+RcppExport SEXP _game_GetMeanRawMoment(SEXP inputDataSEXP, SEXP orderSEXP, SEXP nodeValuesSEXP, SEXP weightValuesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const Rcpp::List& >::type inputData(inputDataSEXP);
+    Rcpp::traits::input_parameter< const unsigned int >::type order(orderSEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type nodeValues(nodeValuesSEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type weightValues(weightValuesSEXP);
-    rcpp_result_gen = Rcpp::wrap(GetMeanNormalizationFactor(inputData, nodeValues, weightValues));
-    return rcpp_result_gen;
-END_RCPP
-}
-// GetMeanExpectedValue
-double GetMeanExpectedValue(const Rcpp::List& inputData, const Rcpp::NumericVector& nodeValues, const Rcpp::NumericVector& weightValues);
-RcppExport SEXP _game_GetMeanExpectedValue(SEXP inputDataSEXP, SEXP nodeValuesSEXP, SEXP weightValuesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type inputData(inputDataSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type nodeValues(nodeValuesSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type weightValues(weightValuesSEXP);
-    rcpp_result_gen = Rcpp::wrap(GetMeanExpectedValue(inputData, nodeValues, weightValues));
+    rcpp_result_gen = Rcpp::wrap(GetMeanRawMoment(inputData, order, nodeValues, weightValues));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -107,8 +95,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_game_GetMean", (DL_FUNC) &_game_GetMean, 3},
     {"_game_GetSquaredDistancesToMean", (DL_FUNC) &_game_GetSquaredDistancesToMean, 4},
     {"_game_GetSquaredDistanceMatrix", (DL_FUNC) &_game_GetSquaredDistanceMatrix, 3},
-    {"_game_GetMeanNormalizationFactor", (DL_FUNC) &_game_GetMeanNormalizationFactor, 3},
-    {"_game_GetMeanExpectedValue", (DL_FUNC) &_game_GetMeanExpectedValue, 3},
+    {"_game_GetMeanRawMoment", (DL_FUNC) &_game_GetMeanRawMoment, 4},
     {"_game_PerformReassignment", (DL_FUNC) &_game_PerformReassignment, 6},
     {"_game_ComputeNewReferences", (DL_FUNC) &_game_ComputeNewReferences, 5},
     {NULL, NULL, 0}

@@ -54,15 +54,8 @@ mean.gmd <- function(x, trim = 0, na.rm = TRUE, log = TRUE, normalize = FALSE) {
 }
 
 #' @export
-mean_expval <- function(x, rule = 2) {
+get_mean_raw_moment <- function(x, order = 0, rule = 2) {
   x <- unfold_gmd(x)
   rule <- ghRules[[rule]]
-  GetMeanExpectedValue(x$data, rule$x, rule$w)
-}
-
-#' @export
-mean_k <- function(x, rule = 2) {
-  x <- unfold_gmd(x)
-  rule <- ghRules[[rule]]
-  GetMeanNormalizationFactor(x$data, rule$x, rule$w)
+  GetMeanRawMoment(x$data, order, rule$x, rule$w)
 }
