@@ -4,8 +4,7 @@
 \alias{gmd}
 \title{Constructor for Gaussian Mixture Data}
 \usage{
-gmd(sample, dictionary, compute_support = TRUE,
-  compute_centring = TRUE)
+gmd(sample, dictionary)
 }
 \arguments{
 \item{sample}{A data frame with 3 variables: \code{observation} which labels

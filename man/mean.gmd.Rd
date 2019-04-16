@@ -4,8 +4,7 @@
 \alias{mean.gmd}
 \title{Sample Mean for Gaussian Mixture Data}
 \usage{
-\method{mean}{gmd}(x, trim = 0, na.rm = TRUE, log = TRUE,
-  normalize = FALSE)
+\method{mean}{gmd}(x, trim = 0, na.rm = TRUE, K = NULL, rule = 2)
 }
 \arguments{
 \item{x}{An object of class \code{\link{gmd}}.}

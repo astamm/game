@@ -45,13 +45,6 @@
   else
     x$sample <- dplyr::slice(x$sample, i)
 
-  if ("centring" %in% names(x)) {
-    if (is.character(i))
-      x$centring <- x$centring[obs %in% i]
-    else
-      x$centring <- x$centring[i]
-  }
-
   x$sample <- tidyr::unnest(x$sample)
 
   x

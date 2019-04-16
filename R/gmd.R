@@ -30,7 +30,7 @@
 #'   precision = 1:M
 #' )
 #' x <- gmd(s, d)
-gmd <- function(sample, dictionary, compute_support = TRUE, compute_centring = TRUE) {
+gmd <- function(sample, dictionary) {
   stopifnot(is.data.frame(sample) && is.data.frame(dictionary))
   stopifnot(length(sample) == 3L && length(dictionary) == 3L)
   stopifnot(all(c("observation", "component", "mixing") %in% names(sample)))
@@ -46,27 +46,12 @@ gmd <- function(sample, dictionary, compute_support = TRUE, compute_centring = T
     sample = dplyr::filter(sample, mixing > 0),
     dictionary = dictionary
   )
-  as_gmd(res, compute_support, compute_centring)
+  as_gmd(res)
 }
 
-as_gmd <- function(x, compute_support = TRUE, compute_centring = TRUE) {
-  if (compute_support)
-    x$support <- support_gmd(x)
-  if (compute_centring) {
-    x$centring <- x %>%
-      unfold_gmd() %>%
-      dplyr::transmute(
-        centring = purrr::map_dbl(data, ~ centring(
-          .x$mean,
-          .x$precision,
-          .x$mixing,
-          x$support$ref_mean,
-          x$support$ref_precision
-        ))
-      ) %>%
-      dplyr::pull(centring)
-  }
-  class(x) <- c("gmd", class(x))
+as_gmd <- function(x) {
+  cl <- class(x)
+  if (!("gmd" %in% cl)) class(x) <- c("gmd", cl)
   x
 }
 
@@ -75,12 +60,9 @@ is_gmd <- function(x) {
 }
 
 unfold_gmd <- function(x) {
-  res <- x$sample %>%
+  x$sample %>%
     dplyr::left_join(x$dictionary, by = "component") %>%
     tidyr::nest(-observation)
-  if ("centring" %in% names(x))
-    res <- dplyr::mutate(res, centring = x$centring)
-  res
 }
 
 align_gmd <- function(x, warping = "shift", target_mean = 0, target_precision = 1) {
@@ -98,27 +80,4 @@ align_gmd <- function(x, warping = "shift", target_mean = 0, target_precision = 
   samp <- dplyr::distinct(x, observation, component, mixing)
   dict <- dplyr::distinct(x, component, mean, precision)
   as_gmd(list(sample = samp, dictionary = dict))
-}
-
-support_gmd <- function(x, width = 5.85) {
-  m <- x %>%
-    unfold_gmd() %>%
-    dplyr::mutate(m = purrr::map_dbl(data, ~ sum(.x$mixing * .x$mean))) %>%
-    dplyr::pull(m) %>%
-    mean()
-  x <- x$dictionary %>%
-    dplyr::mutate(
-      aj = mean - width / sqrt(precision),
-      bj = mean + width / sqrt(precision)
-    )
-  a <- min(x$aj)
-  b <- max(x$bj)
-  sl <- max(b - m, m - a)
-  lb <- m - sl
-  ub <- m + sl
-  v <- (ub - lb)^2 / 12
-  list(
-    ref_mean = m, ref_precision = 1 / v,
-    ref_lb = lb, ref_ub = ub
-  )
 }

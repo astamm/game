@@ -5,7 +5,7 @@
 \title{Affine Alignment for Gaussian Mixture Models}
 \usage{
 align_gmm(x, warping = "affine", target_mean = 0,
-  target_precision = 1, dictionary = NULL)
+  target_precision = 1)
 }
 \arguments{
 \item{x}{A Gaussian mixture stored in an object of class \code{\link{gmm}}.}
@@ -14,11 +14,11 @@ align_gmm(x, warping = "affine", target_mean = 0,
 consider, among \code{shift}, \code{dilation} and \code{affine} (default).
 Any other choice leads to no alignment}
 
-\item{dictionary}{A data frame with the 3 variables \code{component}, \code{mean} and \code{precision} specifying a dictionary of Gaussian measures onto which projecting the resulting aligned Gaussian mixture. If not provided (default), this step is skipped.}
-
 \item{ref_mean}{The reference mean to align to when shift or affine warping functions are used (default: \code{0}).}
 
 \item{ref_precision}{The reference precisions to align to when dilation or affine warping functions are used (default: \code{1}).}
+
+\item{dictionary}{A data frame with the 3 variables \code{component}, \code{mean} and \code{precision} specifying a dictionary of Gaussian measures onto which projecting the resulting aligned Gaussian mixture. If not provided (default), this step is skipped.}
 }
 \value{
 A Gaussian mixture in an object of class \code{\link{gmm}} aligned on the provided reference.

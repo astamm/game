@@ -81,8 +81,3 @@ dist.gmd <- function(x, rule = 2, squared = TRUE) {
   class(d) <- "dist"
   d
 }
-
-#' @export
-distance <- function(x, y, r, rule = ghRules[[20]]) {
-  GetDistance(x, y, r, rule$x, rule$w)
-}

@@ -17,7 +17,6 @@ LazyData: true
 RoxygenNote: 6.1.1
 Collate: 
     'alignment.R'
-    'clr.R'
     'dist.R'
     'game.R'
     'gmd.R'

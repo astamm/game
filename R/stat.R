@@ -26,31 +26,10 @@
 #' )
 #' x <- gmd(s, d)
 #' mean(x)
-mean.gmd <- function(x, trim = 0, na.rm = TRUE, log = TRUE, normalize = FALSE) {
-#   tmp <- unfold_gmd(x)
-#   out <- function(t) {
-#     tmp$data %>%
-#       purrr::map(~ GetLogDensityWRTLebesgue(
-#         inputValues = t,
-#         meanValues = .x$mean,
-#         precisionValues = .x$precision,
-#         mixingValues = .x$mixing
-#       )) %>%
-#       purrr::transpose() %>%
-#       purrr::simplify_all() %>%
-#       purrr::map_dbl(mean, trim = trim, na.rm = na.rm)
-#   }
-#   if (log) return(out)
-#   function(t) {exp(out(t))}
-# }
-#
-# mean2 <- function(x, trim = 0, na.rm = TRUE, log = TRUE, normalize = FALSE) {
-  tmp <- unfold_gmd(x)
-  out <- function(t) GetMean(t, tmp$data, trim)
-  if (log) return(out)
-  f <- function(t) {exp(out(t))}
-  K <- integrate(f, lower = -350, upper = 350)$value
-  function(t) {f(t) / K}
+mean.gmd <- function(x, trim = 0, na.rm = TRUE, K = NULL, rule = 2) {
+  x <- unfold_gmd(x)
+  if (is.null(K)) K <- get_mean_raw_moment(x$data, 0, rule)
+  function(t) GetMean(t, x$data, trim) / K
 }
 
 #' @export
