@@ -1,182 +1,128 @@
 #include "clr.h"
 
+Rcpp::NumericVector GetMixtureDensity(
+    const Rcpp::NumericVector &inputValues,
+    const Rcpp::DataFrame &inputModel,
+    const bool logScale)
+{
+  unsigned int numPoints = inputValues.size();
+  Rcpp::NumericVector meanValues = inputModel["mean"];
+  Rcpp::NumericVector precisionValues = inputModel["precision"];
+  Rcpp::NumericVector mixingValues = inputModel["mixing"];
+  std::vector<double> workVector;
+
+  Rcpp::NumericVector outputValues(numPoints);
+
+  for (unsigned int i = 0;i < numPoints;++i)
+  {
+    double workScalar = GetLogDensityValue(inputValues[i], meanValues, precisionValues, mixingValues, workVector);
+
+    if (!logScale)
+      workScalar = std::exp(workScalar);
+
+    outputValues[i] = workScalar;
+  }
+
+  return outputValues;
+}
+
 Rcpp::NumericVector GetMean(
     const Rcpp::NumericVector &inputValues,
-    const Rcpp::List &mixtureModels,
+    const Rcpp::List &inputData,
     const double alpha)
 {
-  unsigned int numSamples = mixtureModels.size();
+  unsigned int numInputs = inputData.size();
   unsigned int numPoints = inputValues.size();
   Rcpp::NumericVector outputValues(numPoints);
-  std::vector<double> logDensityValues;
-  Rcpp::DataFrame mixtureModel;
+  std::vector<double> workVector;
+  Rcpp::DataFrame workModel;
   Rcpp::NumericVector meanValues;
   Rcpp::NumericVector precisionValues;
   Rcpp::NumericVector mixingValues;
-  std::vector<double> sampleValues(numSamples);
-  unsigned int numUselessSamples = std::floor(alpha * numSamples);
+  std::vector<double> sampleValues(numInputs);
+  unsigned int numUselessInputs = std::floor(alpha * numInputs);
 
   for (unsigned int i = 0;i < numPoints;++i)
   {
     double inputValue = inputValues[i];
 
-    for (unsigned int j = 0;j < numSamples;++j)
+    for (unsigned int j = 0;j < numInputs;++j)
     {
-      mixtureModel = mixtureModels[j];
-      meanValues = mixtureModel["mean"];
-      precisionValues = mixtureModel["precision"];
-      mixingValues = mixtureModel["mixing"];
+      workModel = inputData[j];
+      meanValues = workModel["mean"];
+      precisionValues = workModel["precision"];
+      mixingValues = workModel["mixing"];
 
-      sampleValues[j] = GetLogDensityValue(inputValue, meanValues, precisionValues, mixingValues, logDensityValues);
+      sampleValues[j] = GetLogDensityValue(inputValue, meanValues, precisionValues, mixingValues, workVector);
     }
 
-    std::nth_element(sampleValues.begin(), sampleValues.begin() + numUselessSamples, sampleValues.end());
+    std::nth_element(sampleValues.begin(), sampleValues.begin() + numUselessInputs, sampleValues.end());
 
     double outputValue = 0.0;
 
-    for (unsigned int j = numUselessSamples;j < numSamples;++j)
+    for (unsigned int j = numUselessInputs;j < numInputs;++j)
       outputValue += sampleValues[j];
 
-    outputValues[i] = outputValue / (numSamples - numUselessSamples);
+    outputValues[i] = std::exp(outputValue / (numInputs - numUselessInputs));
   }
 
   return outputValues;
 }
 
 Rcpp::NumericVector GetSquaredDistancesToMean(
-    const Rcpp::List &mixtureModels,
+    const Rcpp::List &inputData,
     const Rcpp::LogicalVector &subsetValues,
     const Rcpp::NumericVector &nodeValues,
     const Rcpp::NumericVector &weightValues)
 {
-  unsigned int numNodes = nodeValues.size();
-  unsigned int numSamples = mixtureModels.size();
-  Rcpp::NumericVector squaredDistancesToMean(numSamples);
+  unsigned int numInputs = inputData.size();
+  unsigned int numPoints = nodeValues.size();
+  Rcpp::NumericVector squaredDistancesToMean(numInputs);
 
   unsigned int numSubset = 0;
-
-  for (unsigned int i = 0;i < numSamples;++i)
+  for (unsigned int i = 0;i < numInputs;++i)
+  {
     if (subsetValues[i])
       ++numSubset;
-
-  Rcpp::DataFrame referenceModel;
-  Rcpp::NumericVector referenceMeanValues, referencePrecisionValues,referenceMixingValues;
-
-  Rcpp::DataFrame mixtureModel;
-  Rcpp::NumericVector meanValues, precisionValues, mixingValues;
-  std::vector<double> logDensityValues;
-
-  // First, recompute optimal reference in this subset of data
-  unsigned int pos = 0;
-  unsigned int referenceIndex = 0;
-  double referenceSquaredDistance = 0;
-
-  for (unsigned int i = 0;i < numSamples;++i)
-  {
-    if (!subsetValues[i])
-      continue;
-
-    referenceModel = mixtureModels[i];
-    referenceMeanValues = referenceModel["mean"];
-    referencePrecisionValues = referenceModel["precision"];
-    referenceMixingValues = referenceModel["mixing"];
-    unsigned int referenceNumComponents = referenceModel.nrows();
-
-    double totalLogIntegral = 0.0;
-    double totalSquareLogIntegral = 0.0;
-
-    for (unsigned int j = 0;j < referenceNumComponents;++j)
-    {
-      double logIntegral = 0.0;
-      double squareLogIntegral = 0.0;
-      double referenceMixingValue = referenceMixingValues[j];
-
-      for (unsigned int k = 0;k < numNodes;++k)
-      {
-        double logValue = 0.0;
-        double inputValue = referenceMeanValues[j] + std::sqrt(2.0 / referencePrecisionValues[j]) * nodeValues[k];
-        double weightValue = weightValues[k];
-
-        for (unsigned int l = 0;l < numSamples;++l)
-        {
-          if (!subsetValues[l])
-            continue;
-
-          mixtureModel = mixtureModels[l];
-          meanValues = mixtureModel["mean"];
-          precisionValues = mixtureModel["precision"];
-          mixingValues = mixtureModel["mixing"];
-
-          double workValue = GetLogDensityValue(inputValue, meanValues, precisionValues, mixingValues, logDensityValues);
-
-          if (l == i)
-            logValue -= (numSubset - 1.0) * workValue;
-          else
-            logValue += workValue;
-        }
-
-        logValue /= numSubset;
-
-        logIntegral += weightValue * logValue;
-        squareLogIntegral += weightValue * logValue * logValue;
-      }
-
-      totalLogIntegral += referenceMixingValue * logIntegral;
-      totalSquareLogIntegral += referenceMixingValue * squareLogIntegral;
-    }
-
-    double workSquaredDistance = totalSquareLogIntegral / std::sqrt(M_PI) - totalLogIntegral * totalLogIntegral / M_PI;
-
-    if (workSquaredDistance < referenceSquaredDistance || pos == 0)
-    {
-      referenceSquaredDistance = workSquaredDistance;
-      referenceIndex = i;
-    }
-
-    ++pos;
   }
 
-  // Then, get distances to mean wrt new reference
-  referenceModel = mixtureModels[referenceIndex];
-  referenceMeanValues = referenceModel["mean"];
-  referencePrecisionValues = referenceModel["precision"];
-  referenceMixingValues = referenceModel["mixing"];
-  unsigned int referenceNumComponents = referenceModel.nrows();
+  std::vector<double> referenceMeanValues, referencePrecisionValues, referenceMixingValues;
+  unsigned int numComponents = BuildReferenceModel(inputData, referenceMeanValues, referencePrecisionValues, referenceMixingValues);
 
-  for (unsigned int i = 0;i < numSamples;++i)
+  Rcpp::DataFrame workModel;
+  Rcpp::NumericVector workMeanValues, workPrecisionValues, workMixingValues;
+  std::vector<double> workVector;
+
+  // Get distances to mean
+  for (unsigned int i = 0;i < numInputs;++i)
   {
-    if (i == referenceIndex)
-    {
-      squaredDistancesToMean[i] = referenceSquaredDistance;
-      continue;
-    }
-
     double totalLogIntegral = 0.0;
     double totalSquareLogIntegral = 0.0;
 
-    for (unsigned int j = 0;j < referenceNumComponents;++j)
+    for (unsigned int j = 0;j < numComponents;++j)
     {
       double logIntegral = 0.0;
       double squareLogIntegral = 0.0;
       double referenceMixingValue = referenceMixingValues[j];
 
-      for (unsigned int k = 0;k < numNodes;++k)
+      for (unsigned int k = 0;k < numPoints;++k)
       {
-        double logValue = 0.0;
         double inputValue = referenceMeanValues[j] + std::sqrt(2.0 / referencePrecisionValues[j]) * nodeValues[k];
         double weightValue = weightValues[k];
 
-        for (unsigned int l = 0;l < numSamples;++l)
+        double logValue = 0.0;
+
+        for (unsigned int l = 0;l < numInputs;++l)
         {
           if (!subsetValues[l])
             continue;
 
-          mixtureModel = mixtureModels[l];
-          meanValues = mixtureModel["mean"];
-          precisionValues = mixtureModel["precision"];
-          mixingValues = mixtureModel["mixing"];
+          workModel = inputData[l];
+          workMeanValues = workModel["mean"];
+          workPrecisionValues = workModel["precision"];
+          workMixingValues = workModel["mixing"];
 
-          double workValue = GetLogDensityValue(inputValue, meanValues, precisionValues, mixingValues, logDensityValues);
+          double workValue = GetLogDensityValue(inputValue, workMeanValues, workPrecisionValues, workMixingValues, workVector);
 
           if (l == i)
             logValue += (numSubset - 1.0) * workValue;
@@ -188,11 +134,11 @@ Rcpp::NumericVector GetSquaredDistancesToMean(
 
         if (!subsetValues[i])
         {
-          mixtureModel = mixtureModels[i];
-          meanValues = mixtureModel["mean"];
-          precisionValues = mixtureModel["precision"];
-          mixingValues = mixtureModel["mixing"];
-          logValue += GetLogDensityValue(inputValue, meanValues, precisionValues, mixingValues, logDensityValues);
+          workModel = inputData[i];
+          workMeanValues = workModel["mean"];
+          workPrecisionValues = workModel["precision"];
+          workMixingValues = workModel["mixing"];
+          logValue += GetLogDensityValue(inputValue, workMeanValues, workPrecisionValues, workMixingValues, workVector);
         }
 
         logIntegral += weightValue * logValue;
@@ -329,88 +275,6 @@ double GetMeanRawMoment(
   return (order == 0) ? totalIntegralValue : kthTotalIntegralValue / totalIntegralValue;
 }
 
-// ADD GetSquaredDistanceToMean()
-
-Rcpp::List PerformReassignment(
-  const Rcpp::IntegerVector &inputMemberships,
-  const Rcpp::List &inputModels,
-  const Rcpp::IntegerVector &referenceModels,
-  const Rcpp::NumericVector &nodeValues,
-  const Rcpp::NumericVector &weightValues,
-  const double alpha)
-{
-  // Mean is obtained from membership vector
-  // Output is new membership vector for a specific group as defined by membershipVector
-  unsigned int numSamples = inputModels.size();
-  unsigned int numClusters = referenceModels.size();
-  Rcpp::IntegerVector outputMemberships(numSamples);
-  Rcpp::NumericVector outputDistances(numSamples);
-
-  for (unsigned int i = 0;i < numSamples;++i)
-  {
-    unsigned int bestCluster = 0;
-    double smallestDistance = 0.0;
-
-    for (unsigned int j = 0;j < numClusters;++j)
-    {
-      double workDistance = GetDistanceToMean(inputModels, i, inputMemberships, j, referenceModels[j], nodeValues, weightValues, alpha);
-
-      if (workDistance < smallestDistance || j == 0)
-      {
-        smallestDistance = workDistance;
-        bestCluster = j;
-      }
-    }
-
-    outputMemberships[i] = bestCluster;
-    outputDistances[i] = smallestDistance;
-  }
-
-  return Rcpp::List::create(
-    Rcpp::Named("memberships") = outputMemberships,
-    Rcpp::Named("distances") = outputDistances
-  );
-}
-
-Rcpp::IntegerVector ComputeNewReferences(
-    const Rcpp::IntegerVector &inputReferences,
-    const Rcpp::List &inputModels,
-    const Rcpp::IntegerVector &membershipValues,
-    const Rcpp::NumericVector &nodeValues,
-    const Rcpp::NumericVector &weightValues)
-{
-  unsigned int numSamples = inputModels.size();
-  unsigned int numClusters = inputReferences.size();
-  Rcpp::IntegerVector outputReferences(numClusters);
-
-  for (unsigned int j = 0;j < numClusters;++j)
-  {
-    unsigned int bestReference = 0;
-    unsigned int pos = 0;
-    double smallestDistance = 0.0;
-
-    for (unsigned int i = 0;i < numSamples;++i)
-    {
-      if (membershipValues[i] != j)
-        continue;
-
-      double workDistance = GetDistanceToMean(inputModels, i, membershipValues, j, inputReferences[j], nodeValues, weightValues);
-
-      if (workDistance < smallestDistance || pos == 0)
-      {
-        smallestDistance = workDistance;
-        bestReference = i;
-      }
-
-      ++pos;
-    }
-
-    outputReferences[j] = bestReference;
-  }
-
-  return outputReferences;
-}
-
 double GetLogDensityValue(
     const double inputValue,
     const Rcpp::NumericVector &meanValues,
@@ -450,96 +314,6 @@ double GetLogDensityValue(
 
   // Compute log of mixture density
   return std::log(mixingValues[indexOfMinimalExponent]) + workVector[indexOfMinimalExponent] + std::log(insideLogValue);
-}
-
-double GetDistanceToMean(
-    const Rcpp::List &mixtureModels,
-    const unsigned int observationIndex,
-    const Rcpp::IntegerVector &membershipValues,
-    const unsigned int clusterIndex,
-    const unsigned int referenceIndex,
-    const Rcpp::NumericVector &nodeValues,
-    const Rcpp::NumericVector &weightValues,
-    const double alpha)
-{
-  unsigned int numNodes = nodeValues.size();
-  unsigned int numSamples = mixtureModels.size();
-
-  unsigned int numSubset = 0;
-  for (unsigned int i = 0;i < numSamples;++i)
-  {
-    if (membershipValues[i] == clusterIndex)
-      ++numSubset;
-  }
-
-  unsigned int numUselessSamples = std::floor(alpha * numSubset);
-  std::vector<double> sampleValues(numSubset);
-
-  Rcpp::DataFrame mixtureModel;
-  Rcpp::NumericVector meanValues, precisionValues, mixingValues;
-  std::vector<double> logDensityValues;
-
-  Rcpp::DataFrame referenceModel = Rcpp::as<Rcpp::DataFrame>(mixtureModels[referenceIndex]);
-  Rcpp::NumericVector referenceMeanValues = referenceModel["mean"];
-  Rcpp::NumericVector referencePrecisionValues = referenceModel["precision"];
-  Rcpp::NumericVector referenceMixingValues = referenceModel["mixing"];
-  unsigned int referenceNumComponents = referenceModel.nrows();
-
-  double totalLogIntegral = 0.0;
-  double totalSquareLogIntegral = 0.0;
-
-  for (unsigned int j = 0;j < referenceNumComponents;++j)
-  {
-    double logIntegral = 0.0;
-    double squareLogIntegral = 0.0;
-    double referenceMixingValue = referenceMixingValues[j];
-
-    for (unsigned int k = 0;k < numNodes;++k)
-    {
-      double inputValue = referenceMeanValues[j] + std::sqrt(2.0 / referencePrecisionValues[j]) * nodeValues[k];
-      double weightValue = weightValues[k];
-
-      // Compute logValue of i-th observed mixture
-      mixtureModel = mixtureModels[observationIndex];
-      meanValues = mixtureModel["mean"];
-      precisionValues = mixtureModel["precision"];
-      mixingValues = mixtureModel["mixing"];
-
-      double logValue1 = GetLogDensityValue(inputValue, meanValues, precisionValues, mixingValues, logDensityValues);
-
-      // Compute logValue of alpha-trimmed mean
-      unsigned int pos = 0;
-      for (unsigned int l = 0;l < numSamples;++l)
-      {
-        if (membershipValues[l] != clusterIndex)
-          continue;
-
-        mixtureModel = mixtureModels[l];
-        meanValues = mixtureModel["mean"];
-        precisionValues = mixtureModel["precision"];
-        mixingValues = mixtureModel["mixing"];
-
-        sampleValues[pos] = GetLogDensityValue(inputValue, meanValues, precisionValues, mixingValues, logDensityValues);
-        ++pos;
-      }
-
-      std::nth_element(sampleValues.begin(), sampleValues.begin() + numUselessSamples, sampleValues.end());
-
-      double logValue2 = 0.0;
-      for (unsigned int l = numUselessSamples;l < numSubset;++l)
-        logValue2 += sampleValues[l];
-
-      logValue2 /= (numSubset - numUselessSamples);
-
-      logIntegral += weightValue * (logValue1 - logValue2);
-      squareLogIntegral += weightValue * (logValue1 - logValue2) * (logValue1 - logValue2);
-    }
-
-    totalLogIntegral += referenceMixingValue * logIntegral;
-    totalSquareLogIntegral += referenceMixingValue * squareLogIntegral;
-  }
-
-  return totalSquareLogIntegral / std::sqrt(M_PI) - totalLogIntegral * totalLogIntegral / M_PI;
 }
 
 double GetSquaredDistance(

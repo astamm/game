@@ -81,3 +81,8 @@ align_gmd <- function(x, warping = "shift", target_mean = 0, target_precision = 
   dict <- dplyr::distinct(x, component, mean, precision)
   as_gmd(list(sample = samp, dictionary = dict))
 }
+
+#' @export
+dgmm <- function(x, model, log = FALSE) {
+  GetMixtureDensity(x, model, log)
+}

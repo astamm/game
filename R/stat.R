@@ -27,9 +27,9 @@
 #' x <- gmd(s, d)
 #' mean(x)
 mean.gmd <- function(x, trim = 0, na.rm = TRUE, K = NULL, rule = 2) {
-  x <- unfold_gmd(x)
-  if (is.null(K)) K <- get_mean_raw_moment(x$data, 0, rule)
-  function(t) GetMean(t, x$data, trim) / K
+  models <- unfold_gmd(x)$data
+  if (is.null(K)) K <- get_mean_raw_moment(x, 0, rule)
+  function(t) GetMean(t, models, trim) / K
 }
 
 #' @export

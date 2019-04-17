@@ -5,6 +5,19 @@
 
 using namespace Rcpp;
 
+// GetMixtureDensity
+Rcpp::NumericVector GetMixtureDensity(const Rcpp::NumericVector& inputValues, const Rcpp::DataFrame& inputModel, const bool logScale);
+RcppExport SEXP _game_GetMixtureDensity(SEXP inputValuesSEXP, SEXP inputModelSEXP, SEXP logScaleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type inputValues(inputValuesSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::DataFrame& >::type inputModel(inputModelSEXP);
+    Rcpp::traits::input_parameter< const bool >::type logScale(logScaleSEXP);
+    rcpp_result_gen = Rcpp::wrap(GetMixtureDensity(inputValues, inputModel, logScale));
+    return rcpp_result_gen;
+END_RCPP
+}
 // GetMean
 Rcpp::NumericVector GetMean(const Rcpp::NumericVector& inputValues, const Rcpp::List& mixtureModels, const double alpha);
 RcppExport SEXP _game_GetMean(SEXP inputValuesSEXP, SEXP mixtureModelsSEXP, SEXP alphaSEXP) {
@@ -19,16 +32,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // GetSquaredDistancesToMean
-Rcpp::NumericVector GetSquaredDistancesToMean(const Rcpp::List& mixtureModels, const Rcpp::LogicalVector& subsetValues, const Rcpp::NumericVector& nodeValues, const Rcpp::NumericVector& weightValues);
-RcppExport SEXP _game_GetSquaredDistancesToMean(SEXP mixtureModelsSEXP, SEXP subsetValuesSEXP, SEXP nodeValuesSEXP, SEXP weightValuesSEXP) {
+Rcpp::NumericVector GetSquaredDistancesToMean(const Rcpp::List& inputData, const Rcpp::LogicalVector& subsetValues, const Rcpp::NumericVector& nodeValues, const Rcpp::NumericVector& weightValues);
+RcppExport SEXP _game_GetSquaredDistancesToMean(SEXP inputDataSEXP, SEXP subsetValuesSEXP, SEXP nodeValuesSEXP, SEXP weightValuesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type mixtureModels(mixtureModelsSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::List& >::type inputData(inputDataSEXP);
     Rcpp::traits::input_parameter< const Rcpp::LogicalVector& >::type subsetValues(subsetValuesSEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type nodeValues(nodeValuesSEXP);
     Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type weightValues(weightValuesSEXP);
-    rcpp_result_gen = Rcpp::wrap(GetSquaredDistancesToMean(mixtureModels, subsetValues, nodeValues, weightValues));
+    rcpp_result_gen = Rcpp::wrap(GetSquaredDistancesToMean(inputData, subsetValues, nodeValues, weightValues));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -59,45 +72,13 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// PerformReassignment
-Rcpp::List PerformReassignment(const Rcpp::IntegerVector& inputMemberships, const Rcpp::List& inputModels, const Rcpp::IntegerVector& referenceModels, const Rcpp::NumericVector& nodeValues, const Rcpp::NumericVector& weightValues, const double alpha);
-RcppExport SEXP _game_PerformReassignment(SEXP inputMembershipsSEXP, SEXP inputModelsSEXP, SEXP referenceModelsSEXP, SEXP nodeValuesSEXP, SEXP weightValuesSEXP, SEXP alphaSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type inputMemberships(inputMembershipsSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type inputModels(inputModelsSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type referenceModels(referenceModelsSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type nodeValues(nodeValuesSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type weightValues(weightValuesSEXP);
-    Rcpp::traits::input_parameter< const double >::type alpha(alphaSEXP);
-    rcpp_result_gen = Rcpp::wrap(PerformReassignment(inputMemberships, inputModels, referenceModels, nodeValues, weightValues, alpha));
-    return rcpp_result_gen;
-END_RCPP
-}
-// ComputeNewReferences
-Rcpp::IntegerVector ComputeNewReferences(const Rcpp::IntegerVector& inputReferences, const Rcpp::List& inputModels, const Rcpp::IntegerVector& membershipVector, const Rcpp::NumericVector& nodeValues, const Rcpp::NumericVector& weightValues);
-RcppExport SEXP _game_ComputeNewReferences(SEXP inputReferencesSEXP, SEXP inputModelsSEXP, SEXP membershipVectorSEXP, SEXP nodeValuesSEXP, SEXP weightValuesSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type inputReferences(inputReferencesSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::List& >::type inputModels(inputModelsSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::IntegerVector& >::type membershipVector(membershipVectorSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type nodeValues(nodeValuesSEXP);
-    Rcpp::traits::input_parameter< const Rcpp::NumericVector& >::type weightValues(weightValuesSEXP);
-    rcpp_result_gen = Rcpp::wrap(ComputeNewReferences(inputReferences, inputModels, membershipVector, nodeValues, weightValues));
-    return rcpp_result_gen;
-END_RCPP
-}
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_game_GetMixtureDensity", (DL_FUNC) &_game_GetMixtureDensity, 3},
     {"_game_GetMean", (DL_FUNC) &_game_GetMean, 3},
     {"_game_GetSquaredDistancesToMean", (DL_FUNC) &_game_GetSquaredDistancesToMean, 4},
     {"_game_GetSquaredDistanceMatrix", (DL_FUNC) &_game_GetSquaredDistanceMatrix, 3},
     {"_game_GetMeanRawMoment", (DL_FUNC) &_game_GetMeanRawMoment, 4},
-    {"_game_PerformReassignment", (DL_FUNC) &_game_PerformReassignment, 6},
-    {"_game_ComputeNewReferences", (DL_FUNC) &_game_ComputeNewReferences, 5},
     {NULL, NULL, 0}
 };
 

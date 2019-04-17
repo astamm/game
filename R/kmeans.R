@@ -132,13 +132,13 @@ kmeans.sgd <- function(x, k = 2, iter.max = 50L) {
 #' @describeIn kmeans Implementation for Gaussian Mixture Data (stored in objects
 #'   of class \code{\link{gmd}}).
 #' @export
-kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, info = NULL, rule = ghRules[[20]], alpha = 0) {
+kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, rule = 2, alpha = 0, shift = FALSE) {
+  if (shift) x <- align_gmd(x)
   xf <- unfold_gmd(x)
   n <- nrow(xf)
   stopifnot(k <= n)
 
-  if (is.null(info)) info <- frm(x)
-  if (is.null(d2)) d2 <- dist(x, info$index)
+  if (is.null(d2) || shift) d2 <- dist(x, rule, squared = TRUE)
 
   totss <- 1:n %>%
     purrr::map_dbl(dist_to_centroid, j = 1, d2 = d2, m = rep(1, n)) %>%
@@ -148,7 +148,9 @@ kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, info = NULL, rule = 
   writeLines("***** INITIALIZATION *****")
   cl <- cluster::pam(x = sqrt(d2), k = k)
   c <- cl$clustering
+
   print(table(c))
+  print(totss)
 
   # Now iterating
   stop_loop <- FALSE
@@ -160,11 +162,23 @@ kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, info = NULL, rule = 
     writeLines(paste("***** ITERATION", iter, "*****"))
 
     writeLines("- Assigning observations to clusters...")
-    dsts <- 1:n %>%
-      purrr::map(~ purrr::map_dbl(1:k, dist_to_centroid, i = .x, d2 = d2, m = c))
+    if (shift) {
+      dsts <- 1:k %>%
+        purrr::map(~ {
+          mu <- get_mean_raw_moment(x = x[c == .x], order = 1, rule = rule)
+          xc <- x
+          xc$dictionary$mean <- x$dictionary$mean + mu
+          get_squared_distances_to_mean(xc, .x, c, rule = rule)
+        }) %>%
+        purrr::transpose() %>%
+        purrr::simplify_all()
+    } else {
+      dsts <- 1:n %>%
+        purrr::map(~ purrr::map_dbl(1:k, dist_to_centroid, i = .x, d2 = d2, m = c))
+    }
 
     c_up <- purrr::map_int(dsts, which.min)
-    withinss <- purrr::map_dbl(dsts, min) %>% .aggregate(c_up, sum)
+    withinss <- dsts %>% purrr::map_dbl(min) %>% .aggregate(c_up, sum)
     stop_loop <- (sum(c_up - c) == 0) || (iter > iter.max)
 
     c <- c_up
@@ -176,7 +190,7 @@ kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, info = NULL, rule = 
   # Wrap-up
   tot.withinss <- sum(withinss)
   centroids <- sort(unique(c)) %>%
-    purrr::map(~ mean(x[c == .x], log = TRUE, trim = alpha))
+    purrr::map(~ mean(x[c == .x], rule = rule))
 
   # Build output
   res <- list(
@@ -197,142 +211,84 @@ kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, info = NULL, rule = 
   class(res) <- c("kmeans", class(res))
   res
 }
-# kmeans.gmd <- function(x, k = 2, iter.max = 50L, d = NULL, info = NULL, rule = ghRules[[20]], alpha = 0.5) {
-#   xf <- unfold_gmd(x)
-#   n <- nrow(xf)
-#   stopifnot(k <= n)
-#
-#   if (is.null(info)) info <- frm(x)
-#   if (is.null(d)) d <- dist(x, info$index)
-#
-#   totss <- 0 # sum(info$distances^2)
-#
-#   # Initialization
-#   writeLines("***** INITIALIZATION *****")
-#   cl <- cluster::pam(x = d, k = k)
-#   c <- cl$clustering - 1
-#   # refs <- cl$id.med - 1
-#   refs <- rep(info$index - 1, k)
-#   print(table(c + 1))
-#
-#   # Now iterating
-#   stop_loop <- FALSE
-#   iter <- 0
-#
-#   while (!stop_loop) {
-#     iter <- iter + 1
-#
-#     writeLines(paste("***** ITERATION", iter, "*****"))
-#
-#     writeLines("- Assigning observations to clusters...")
-#     tmp <- PerformReassignment(c, xf$data, refs, rule$x, rule$w, alpha)
-#     c_up <- tmp$memberships
-#     distances <- tmp$distances
-#
-#     withinss <- .aggregate(distances, c_up + 1, sum)
-#     stop_loop <- (sum(c_up - c) == 0) || (iter > iter.max)
-#     c <- c_up
-#
-#     writeLines("- Updating reference measures...")
-#     # refs <- ComputeNewReferences(refs, xf$data, c, rule$x, rule$w);
-#
-#     print(table(c + 1))
-#     print(sum(withinss))
-#   }
-#
-#   # Wrap-up
-#   c <- c + 1
-#   tot.withinss <- sum(withinss)
-#   centroids <- sort(unique(c)) %>%
-#     purrr::map(~ mean(x[c == .x], log = TRUE, trim = alpha))
-#
-#   # Build output
-#   res <- list(
-#     cluster = c,
-#     centers = tibble::tibble(
-#       center = sort(unique(c)),
-#       data = centroids
-#     ),
-#     dictionary = x$dictionary,
-#     totss = totss,
-#     withinss = withinss,
-#     tot.withinss = tot.withinss,
-#     betweenss = totss - tot.withinss,
-#     size = table(c),
-#     iter = iter,
-#     ifault = as.integer(iter >= iter.max)
-#   )
-#   class(res) <- c("kmeans", class(res))
-#   res
-# }
-# # kmeans.gmd <- function(x, k = 2, iter.max = 50L, d = NULL, info = NULL, rule = ghRules[[20]]) {
-# #   xf <- unfold_gmd(x)
-# #   n <- nrow(xf)
-# #   stopifnot(k <= n)
-# #
-# #   if (is.null(info)) info <- frm(x)
-# #   if (is.null(d)) d <- dist(x, info$index)
-# #
-# #   totss <- 0 # sum(info$distances^2)
-# #
-# #   # Initialization
-# #   writeLines("***** INITIALIZATION *****")
-# #   cl <- cluster::pam(x = d, k = k)
-# #   c <- cl$clustering
-# #   print(table(c))
-# #
-# #   # Now iterating
-# #   stop_loop <- FALSE
-# #   iter <- 0
-# #
-# #   while (!stop_loop) {
-# #     iter <- iter + 1
-# #
-# #     writeLines(paste("***** ITERATION", iter, "*****"))
-# #
-# #     tmp <- sort(unique(c)) %>%
-# #       purrr::map(~ GetSquaredDistancesToMean(xf$data, c == .x, rule$x, rule$w)) %>%
-# #       purrr::transpose() %>%
-# #       purrr::simplify_all()
-# #
-# #     c_up <- tmp %>%
-# #       purrr::map_int(which.min) %>%
-# #       forcats::as_factor() %>%
-# #       forcats::fct_relabel(~ as.character(seq_along(as.character(.)))) %>%
-# #       as.numeric()
-# #
-# #     withinss <- purrr::map_dbl(tmp, min)^2 %>%
-# #       .aggregate(c_up, sum)
-# #     stop_loop <- (sum(c_up - c) == 0) || (iter > iter.max)
-# #     c <- c_up
-# #
-# #     print(table(c))
-# #     print(sum(withinss))
-# #   }
-# #
-# #   # Wrap-up
-# #   tot.withinss <- sum(withinss)
-# #   centroids <- sort(unique(c)) %>%
-# #     purrr::map(~ function(t) {
-# #       GetMean(t, xf$data[c == .x])
-# #     })
-# #
-# #   # Build output
-# #   res <- list(
-# #     cluster = c,
-# #     centers = tibble::tibble(
-# #       center = sort(unique(c)),
-# #       data = centroids
-# #     ),
-# #     dictionary = x$dictionary,
-# #     totss = totss,
-# #     withinss = withinss,
-# #     tot.withinss = tot.withinss,
-# #     betweenss = totss - tot.withinss,
-# #     size = table(c),
-# #     iter = iter,
-# #     ifault = as.integer(iter >= iter.max)
-# #   )
-# #   class(res) <- c("kmeans", class(res))
-# #   res
-# # }
+
+#' @export
+kmeans2 <- function(x, k = 2, iter.max = 50L, d2 = NULL, rule = 2, alpha = 0, shift = FALSE) {
+  if (shift) x <- align_gmd(x)
+  xf <- unfold_gmd(x)
+  n <- nrow(xf)
+  stopifnot(k <= n)
+
+  if (is.null(d2) || shift) d2 <- dist(x, rule, squared = TRUE)
+
+  totss <- 1:n %>%
+    purrr::map_dbl(dist_to_centroid, j = 1, d2 = d2, m = rep(1, n)) %>%
+    sum()
+
+  # Initialization
+  writeLines("***** INITIALIZATION *****")
+  cl <- cluster::pam(x = sqrt(d2), k = k)
+  c <- cl$clustering
+
+  print(table(c))
+  print(totss)
+
+  # Now iterating
+  stop_loop <- FALSE
+  iter <- 0
+
+  while (!stop_loop) {
+    iter <- iter + 1
+
+    writeLines(paste("***** ITERATION", iter, "*****"))
+
+    writeLines("- Assigning observations to clusters...")
+    if (shift) {
+      d2matrices <- 1:k %>%
+        purrr::map(~ {
+          mu <- get_mean_raw_moment(x = x[c == .x], order = 1, rule = rule)
+          xc <- x
+          xc$dictionary$mean <- x$dictionary$mean + mu
+          dist(xc, rule = rule)
+        })
+      dsts <- 1:n %>%
+        purrr::map(~ purrr::imap_dbl(d2matrices, dist_to_centroid, i = .x, m = c))
+    } else {
+      dsts <- 1:n %>%
+        purrr::map(~ purrr::map_dbl(1:k, dist_to_centroid, i = .x, d2 = d2, m = c))
+    }
+
+    c_up <- purrr::map_int(dsts, which.min)
+    withinss <- dsts %>% purrr::map_dbl(min) %>% .aggregate(c_up, sum)
+    stop_loop <- (sum(c_up - c) == 0) || (iter > iter.max)
+
+    c <- c_up
+
+    print(table(c))
+    print(sum(withinss))
+  }
+
+  # Wrap-up
+  tot.withinss <- sum(withinss)
+  centroids <- sort(unique(c)) %>%
+    purrr::map(~ mean(x[c == .x], rule = rule))
+
+  # Build output
+  res <- list(
+    cluster = c,
+    centers = tibble::tibble(
+      center = sort(unique(c)),
+      data = centroids
+    ),
+    dictionary = x$dictionary,
+    totss = totss,
+    withinss = withinss,
+    tot.withinss = tot.withinss,
+    betweenss = totss - tot.withinss,
+    size = table(c),
+    iter = iter,
+    ifault = as.integer(iter >= iter.max)
+  )
+  class(res) <- c("kmeans", class(res))
+  res
+}

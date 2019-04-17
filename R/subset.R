@@ -70,11 +70,3 @@ subset_impl <- function(x, n, i, j) {
   x <- as.numeric(x)
   outer(i, j, subset_impl, x = x, n = n)
 }
-
-dist_to_centroid <- function(i, j, d2, m) {
-  n <- sum(m == j)
-  idx <- which(m == j)
-  term1 <- sum(d2[i, idx])
-  term2 <- sum(d2[idx, idx])
-  (term1 - term2 / (2 * n)) / n
-}

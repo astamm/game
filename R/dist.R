@@ -81,3 +81,17 @@ dist.gmd <- function(x, rule = 2, squared = TRUE) {
   class(d) <- "dist"
   d
 }
+
+dist_to_centroid <- function(d2, j, i, m) {
+  n <- sum(m == j)
+  idx <- which(m == j)
+  term1 <- sum(d2[i, idx])
+  term2 <- sum(d2[idx, idx])
+  (term1 - term2 / (2 * n)) / n
+}
+
+get_squared_distances_to_mean <- function(x, cluster, memberships, rule = 2) {
+  rule <- ghRules[[rule]]
+  x <- unfold_gmd(x)$data
+  GetSquaredDistancesToMean(x, memberships == cluster, rule$x, rule$w)
+}
