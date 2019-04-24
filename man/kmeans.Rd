@@ -16,7 +16,7 @@ kmeans(x, ...)
 \method{kmeans}{sgd}(x, k = 2, iter.max = 50L)
 
 \method{kmeans}{gmd}(x, k = 2, iter.max = 50L, d2 = NULL, rule = 2,
-  alpha = 0, shift = FALSE)
+  shift = FALSE, avoid_mean_computation = FALSE)
 }
 \arguments{
 \item{x}{A numeric matrix where each row is a data point or an object that

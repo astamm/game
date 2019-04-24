@@ -70,12 +70,11 @@ dist.sgd <- function(x, ref_mean = 0, ref_precision = 1) {
 #' @export
 dist.gmd <- function(x, rule = 2, squared = TRUE) {
   x <- unfold_gmd(x)
-  rule = ghRules[[rule]]
+  rule <- ghRules[[rule]]
   d <- GetSquaredDistanceMatrix(x$data, rule$x, rule$w);
   if (!squared) d <- sqrt(d)
   attributes(d) <- NULL
-  nm <- x$observation
-  attr(d, "Labels") <- nm
+  attr(d, "Labels") <- x$observation
   attr(d, "Size") <- nrow(x)
   attr(d, "call") <- match.call()
   class(d) <- "dist"
