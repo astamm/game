@@ -1,4 +1,12 @@
+// [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::depends(RcppNumerical)]]
+
+#include <RcppNumerical.h>
+
+using namespace Numer;
+
 #include "clr.h"
+#include "distanceClasses.h"
 
 Rcpp::NumericVector GetMixtureDensity(
     const Rcpp::NumericVector &inputValues,
@@ -67,6 +75,14 @@ Rcpp::NumericVector GetMean(
   }
 
   return outputValues;
+}
+
+Rcpp::NumericVector GetCovarianceKernel(
+    const Rcpp::NumericVector &inputValues,
+    const Rcpp::List &inputData)
+{
+  // (1/(n-1)) \sum_i \int_s (x_i(t) - xbar(t)) (x_i(s) - xbar(s)) f(s) ds
+  //
 }
 
 Rcpp::NumericVector GetSquaredDistancesToMean(
@@ -157,48 +173,45 @@ Rcpp::NumericVector GetSquaredDistancesToMean(
 
 Rcpp::NumericVector GetSquaredDistanceMatrix(
     const Rcpp::List &inputData,
-    const Rcpp::NumericVector &nodeValues,
-    const Rcpp::NumericVector &weightValues)
+    const std::vector<double> &nodeValues,
+    const std::vector<double> &weightValues)
 {
+  SquaredBayesDistance sqDistance;
+  sqDistance.SetDataPoints(inputData);
+  sqDistance.SetQuadraturePoints(nodeValues);
+  sqDistance.SetQuadratureWeights(weightValues);
+
+  SquaredBayesDistance::ParametersType x(2), grad;
+  x[0] = 0;
+  x[1] = 0;
+
   unsigned int numInputs = inputData.size();
 
   Rcpp::NumericVector outputValues(numInputs * (numInputs - 1) / 2);
-  Rcpp::DataFrame firstModel, secondModel;
-  Rcpp::NumericVector firstMeanValues, firstPrecisionValues, firstMixingValues;
-  Rcpp::NumericVector secondMeanValues, secondPrecisionValues, secondMixingValues;
-  std::vector <double> workVector, logValues(numInputs);
-
-  // First define the reference Gaussian mixture wrt which integration will take place with GH.
-  // The best for accuracy is to concatenate all input mixture models into one.
-  // Note however that it is computationally expensive.
-
-  std::vector<double> referenceMeanValues, referencePrecisionValues, referenceMixingValues;
-  unsigned int numComponents = BuildReferenceModel(inputData, referenceMeanValues, referencePrecisionValues, referenceMixingValues);
 
   // Now integrate to get distances
 
   for (unsigned int i = 0;i < numInputs - 1;++i)
   {
-    firstModel = inputData[i];
-    firstMeanValues = firstModel["mean"];
-    firstPrecisionValues = firstModel["precision"];
-    firstMixingValues = firstModel["mixing"];
+    if (i > 0)
+      continue;
+
+    sqDistance.SetInput1(i);
 
     for (unsigned int j = i + 1;j < numInputs;++j)
     {
-      secondModel = inputData[j];
-      secondMeanValues = secondModel["mean"];
-      secondPrecisionValues = secondModel["precision"];
-      secondMixingValues = secondModel["mixing"];
+      if (j > 1)
+        continue;
 
-      double workScalar = GetSquaredDistance(
-        firstMeanValues, firstPrecisionValues, firstMixingValues,
-        secondMeanValues, secondPrecisionValues, secondMixingValues,
-        referenceMeanValues, referencePrecisionValues, referenceMixingValues, numComponents,
-        nodeValues, weightValues, workVector);
+      sqDistance.SetInput2(j);
+      // double workScalar = sqDistance.f_grad(x, grad);
 
-      // workScalar += 1 * (firstModel.nrows() - secondModel.nrows()) * (firstModel.nrows() - secondModel.nrows());
-      outputValues[numInputs * i - (i + 1) * i / 2 + j - i - 1] = workScalar;
+      x[0] = 0;
+      x[1] = 0;
+      double workScalar;
+      int res = optim_lbfgs(sqDistance, x, workScalar);
+
+      outputValues[numInputs * i - (i + 1) * i / 2 + j - i - 1] = res;
     }
   }
 

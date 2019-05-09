@@ -21,3 +21,7 @@ GetMeanRawMoment <- function(inputData, order, nodeValues, weightValues) {
     .Call('_game_GetMeanRawMoment', PACKAGE = 'game', inputData, order, nodeValues, weightValues)
 }
 
+GetSquaredDistance <- function(firstMeanValues, firstPrecisionValues, firstMixingValues, secondMeanValues, secondPrecisionValues, secondMixingValues, referenceMeanValues, referencePrecisionValues, referenceMixingValues, numComponents, nodeValues, weightValues, workVector) {
+    .Call('_game_GetSquaredDistance', PACKAGE = 'game', firstMeanValues, firstPrecisionValues, firstMixingValues, secondMeanValues, secondPrecisionValues, secondMixingValues, referenceMeanValues, referencePrecisionValues, referenceMixingValues, numComponents, nodeValues, weightValues, workVector)
+}
+

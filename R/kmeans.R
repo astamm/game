@@ -132,7 +132,7 @@ kmeans.sgd <- function(x, k = 2, iter.max = 50L) {
 #' @describeIn kmeans Implementation for Gaussian Mixture Data (stored in objects
 #'   of class \code{\link{gmd}}).
 #' @export
-kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, rule = 2, shift = FALSE, avoid_mean_computation = FALSE) {
+kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, method = "ward.D", rule = 2, shift = FALSE, avoid_mean_computation = FALSE) {
   if (shift) x <- align_gmd(x)
   xf <- unfold_gmd(x)
   n <- nrow(xf)
@@ -144,7 +144,7 @@ kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, rule = 2, shift = FA
     xc$dictionary$mean <- x$dictionary$mean + mu
   }
 
-  if (is.null(d2) || shift) d2 <- dist(xc, rule = rule, squared = TRUE)
+  # if (is.null(d2) || shift) d2 <- dist(xc, rule = rule, squared = TRUE)
 
   if (avoid_mean_computation) {
     totss <- 1:n %>%
@@ -158,11 +158,8 @@ kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, rule = 2, shift = FA
 
   # Initialization
   writeLines("***** INITIALIZATION *****")
-  # cl <- cluster::pam(x = sqrt(d2), k = k)
-  # memberships <- cl$clustering
-
-  cl <- hclust(sqrt(d2), "ward.D2")
-  memberships <- cutree(cl, k = k)
+  cl <- initialize_kmeans(d2, k = k, method = method)
+  memberships <- cl$memberships
 
   print(table(memberships))
   print(totss)
@@ -243,4 +240,52 @@ kmeans.gmd <- function(x, k = 2, iter.max = 50L, d2 = NULL, rule = 2, shift = FA
   )
   class(res) <- c("kmeans", class(res))
   res
+}
+
+# initialize_kmeans <- function(d2, k = 1, R = 1) {
+#   n <- attr(d2, "Size")
+#   init_best <- 0
+#   wss_best <- 0
+#   for (i in 1:R) {
+#     init <- sample.int(n, size = 1)
+#     while (length(init) < k) {
+#       dsts <- apply(d2[, init], 1, min)
+#       wss <- sum(dsts)
+#       pr <- dsts / wss
+#       init <- c(init, sample.int(n, size = 1, prob = pr))
+#     }
+#     if (wss < wss_best || i == 1) {
+#       init_best <- init
+#       wss_best <- wss
+#     }
+#   }
+#   list(id = init_best, wss = wss_best)
+# }
+
+initialize_kmeans <- function(d2, k = 1, method = "ward.D") {
+  if (method == "pam") {
+    cl <- cluster::pam(x = sqrt(d2), k = k)
+    return(list(
+      id = cl$id.med,
+      wss = sum(apply(d2[, cl$id.med], 1, min)),
+      memberships = cl$clustering
+    ))
+  }
+  if (method == "ward.D")
+    cl <- hclust(d2, method = method)
+  else
+    cl <- hclust(sqrt(d2), method = method)
+  memberships <- cutree(cl, k = k)
+  med <- integer(k)
+  for (i in 1:k) {
+    idx <- which(memberships == i)
+    dsts <- rowSums(d2[idx, idx])
+    med[i] <- idx[which.min(dsts)]
+  }
+  med
+  list(
+    id = med,
+    wss = sum(apply(d2[, med], 1, min)),
+    memberships = memberships
+  )
 }

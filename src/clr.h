@@ -22,8 +22,8 @@ Rcpp::NumericVector GetSquaredDistancesToMean(
 // [[Rcpp::export]]
 Rcpp::NumericVector GetSquaredDistanceMatrix(
                 const Rcpp::List &inputData,
-                const Rcpp::NumericVector &nodeValues,
-                const Rcpp::NumericVector &weightValues);
+                const std::vector<double> &nodeValues,
+                const std::vector<double> &weightValues);
 
 // [[Rcpp::export]]
 double GetMeanRawMoment(
@@ -39,6 +39,7 @@ double GetLogDensityValue(
                 const Rcpp::NumericVector &mixingValues,
                 std::vector<double> &workVector);
 
+// [[Rcpp::export]]
 double GetSquaredDistance(
                 const Rcpp::NumericVector &firstMeanValues,
                 const Rcpp::NumericVector &firstPrecisionValues,

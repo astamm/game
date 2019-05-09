@@ -15,8 +15,9 @@ kmeans(x, ...)
 
 \method{kmeans}{sgd}(x, k = 2, iter.max = 50L)
 
-\method{kmeans}{gmd}(x, k = 2, iter.max = 50L, d2 = NULL, rule = 2,
-  shift = FALSE, avoid_mean_computation = FALSE)
+\method{kmeans}{gmd}(x, k = 2, iter.max = 50L, d2 = NULL,
+  method = "ward.D", rule = 2, shift = FALSE,
+  avoid_mean_computation = FALSE)
 }
 \arguments{
 \item{x}{A numeric matrix where each row is a data point or an object that
@@ -45,6 +46,11 @@ with all numeric columns), an \code{\link{sgd}} object or a
     produced.  Higher values may produce more tracing information.}
 
 \item{k}{The number of clusters to look for (default: \code{2L}).}
+
+\item{method}{character: may be abbreviated. \code{"centers"} causes
+    \code{fitted} to return cluster centers (one for each input point) and
+    \code{"classes"} causes \code{fitted} to return a vector of class
+    assignments.}
 }
 \value{
 An object of class \code{"kmeans"} which as a \code{print} and a
