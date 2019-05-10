@@ -185,7 +185,7 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
   x[0] = 0;
   x[1] = 0;
   int maxit = 100;
-  double eps_f = 0.001;
+  double eps_f = 1.0e-4;
 
   unsigned int numInputs = inputData.size();
 
@@ -195,15 +195,15 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
 
   for (unsigned int i = 0;i < numInputs - 1;++i)
   {
-    if (i > 0)
-      continue;
+    // if (i > 0)
+    //   continue;
 
     sqDistance.SetInput1(i);
 
     for (unsigned int j = i + 1;j < numInputs;++j)
     {
-      if (j > 1)
-        continue;
+      // if (j > 1)
+      //   continue;
 
       sqDistance.SetInput2(j);
       // double workScalar = sqDistance.f_grad(x, grad);

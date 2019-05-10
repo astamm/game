@@ -200,16 +200,36 @@ double SquaredBayesDistance::EvaluateLogDensityJacobian(
   unsigned int numComponents = meanValues.size();
   m_WorkVector.resize(numComponents);
 
+  double maximalExponent = 0.0;
+  unsigned int indexOfMaximalExponent = 0;
+
+  for (unsigned int i = 0;i < numComponents;++i)
+  {
+    double workScalar = -precisionValues[i] * (inputValue - meanValues[i]) * (inputValue - meanValues[i]) / 2.0;
+
+    if (workScalar > maximalExponent || i == 0)
+    {
+      maximalExponent = workScalar;
+      indexOfMaximalExponent = i;
+    }
+
+    m_WorkVector[i] = workScalar;
+  }
+
   double sumWeights = 0.0;
   for (unsigned int i = 0;i < numComponents;++i)
   {
-    double workScalar = mixingValues[i] * std::sqrt(precisionValues[i] / (2.0 * M_PI)) * std::exp(-precisionValues[i] * (inputValue - meanValues[i]) * (inputValue - meanValues[i]) / 2.0);
+    double workScalar = mixingValues[i] * std::sqrt(precisionValues[i] / (2.0 * M_PI)) * std::exp(m_WorkVector[i] - maximalExponent);
     m_WorkVector[i] = workScalar;
     sumWeights += workScalar;
   }
 
   if (sumWeights < 1.0e-16)
-    return 0.0;
+  {
+    sumWeights = (double)numComponents;
+    for (unsigned int i = 0;i < numComponents;++i)
+      m_WorkVector[i] = 1.0;
+  }
 
   double outputValue = 0.0;
 
