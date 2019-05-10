@@ -184,6 +184,8 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
   SquaredBayesDistance::ParametersType x(2), grad;
   x[0] = 0;
   x[1] = 0;
+  int maxit = 100;
+  double eps_f = 0.001;
 
   unsigned int numInputs = inputData.size();
 
@@ -209,9 +211,9 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
       x[0] = 0;
       x[1] = 0;
       double workScalar;
-      int res = optim_lbfgs(sqDistance, x, workScalar);
+      int res = optim_lbfgs(sqDistance, x, workScalar, maxit, eps_f);
 
-      outputValues[numInputs * i - (i + 1) * i / 2 + j - i - 1] = res;
+      outputValues[numInputs * i - (i + 1) * i / 2 + j - i - 1] = workScalar;
     }
   }
 

@@ -29,13 +29,13 @@ protected:
       const VectorType &referenceMeanValues, const VectorType &referencePrecisionValues, const VectorType &referenceMixingValues,
       double &jacobianValueWRTFirst, double &jacobianValueWRTReference
   );
-  double EvaluateLogDensityValue(
+  double EvaluateLogDensity(
       const double inputValue,
       const VectorType &meanValues,
       const VectorType &precisionValues,
       const VectorType &mixingValues
   );
-  double EvaluateDensityJacobianWRTMean(
+  double EvaluateLogDensityJacobian(
       const double inputValue,
       const VectorType &meanValues,
       const VectorType &precisionValues,

@@ -22,6 +22,7 @@ double SquaredBayesDistance::f_grad(Constvec& x, Refvec grad)
   grad[0] = jacobianValueWRTFirst;
   grad[1] = jacobianValueWRTReference;
 
+  // Rcpp::Rcout << costValue << std::endl;
   // Rcpp::Rcout << grad << std::endl;
 
   return costValue;
@@ -115,18 +116,18 @@ double SquaredBayesDistance::EvaluateSquaredDistance(
       double inputValue = referenceMeanValues[i] + std::sqrt(2.0 / referencePrecisionValues[i]) * m_QuadraturePoints[j];
       double weightValue = m_QuadratureWeights[j];
 
-      double logValue1 = this->EvaluateLogDensityValue(inputValue, firstMeanValues, firstPrecisionValues, firstMixingValues);
-      double logValue2 = this->EvaluateLogDensityValue(inputValue, secondMeanValues, secondPrecisionValues, secondMixingValues);
+      double logValue1 = this->EvaluateLogDensity(inputValue, firstMeanValues, firstPrecisionValues, firstMixingValues);
+      double logValue2 = this->EvaluateLogDensity(inputValue, secondMeanValues, secondPrecisionValues, secondMixingValues);
 
       logIntegral += weightValue * (logValue1 - logValue2);
       squareLogIntegral += weightValue * (logValue1 - logValue2) * (logValue1 - logValue2);
 
-      double firstJacobianValue = this->EvaluateDensityJacobianWRTMean(inputValue, firstMeanValues, firstPrecisionValues, firstMixingValues);
-      logIntegralWRTFirst += weightValue * firstJacobianValue / std::exp(logValue1);
-      squareLogIntegralWRTFirst += weightValue * firstJacobianValue * (logValue1 - logValue2) / std::exp(logValue1);
+      double firstJacobianValue = this->EvaluateLogDensityJacobian(inputValue, firstMeanValues, firstPrecisionValues, firstMixingValues);
+      logIntegralWRTFirst += weightValue * firstJacobianValue;
+      squareLogIntegralWRTFirst += weightValue * firstJacobianValue * (logValue1 - logValue2);
 
       logIntegralWRTReference += weightValue * (logValue1 - logValue2) * (inputValue - referenceMeanValues[i]);
-      squareLogIntegralWRTFirst += weightValue * (logValue1 - logValue2) * (logValue1 - logValue2) * (inputValue - referenceMeanValues[i]);
+      squareLogIntegralWRTReference += weightValue * (logValue1 - logValue2) * (logValue1 - logValue2) * (inputValue - referenceMeanValues[i]);
     }
 
     totalLogIntegral += referenceMixingValue * logIntegral;
@@ -150,7 +151,7 @@ double SquaredBayesDistance::EvaluateSquaredDistance(
   return costValue;
 }
 
-double SquaredBayesDistance::EvaluateLogDensityValue(
+double SquaredBayesDistance::EvaluateLogDensity(
     const double inputValue,
     const VectorType &meanValues,
     const VectorType &precisionValues,
@@ -190,23 +191,32 @@ double SquaredBayesDistance::EvaluateLogDensityValue(
   return std::log(mixingValues[indexOfMinimalExponent]) + m_WorkVector[indexOfMinimalExponent] + std::log(insideLogValue);
 }
 
-double SquaredBayesDistance::EvaluateDensityJacobianWRTMean(
+double SquaredBayesDistance::EvaluateLogDensityJacobian(
     const double inputValue,
     const VectorType &meanValues,
     const VectorType &precisionValues,
     const VectorType &mixingValues)
 {
   unsigned int numComponents = meanValues.size();
+  m_WorkVector.resize(numComponents);
+
+  double sumWeights = 0.0;
+  for (unsigned int i = 0;i < numComponents;++i)
+  {
+    double workScalar = mixingValues[i] * std::sqrt(precisionValues[i] / (2.0 * M_PI)) * std::exp(-precisionValues[i] * (inputValue - meanValues[i]) * (inputValue - meanValues[i]) / 2.0);
+    m_WorkVector[i] = workScalar;
+    sumWeights += workScalar;
+  }
+
+  if (sumWeights < 1.0e-16)
+    return 0.0;
 
   double outputValue = 0.0;
 
   for (unsigned int i = 0;i < numComponents;++i)
-  {
-    double meanDifference = inputValue - meanValues[i];
-    double precisionValue = precisionValues[i];
-    double workScalar = mixingValues[i] * precisionValue * meanDifference * std::sqrt(precisionValue / (2.0 * M_PI)) * std::exp(-precisionValue * meanDifference * meanDifference / 2.0);
-    outputValue += workScalar;
-  }
+    outputValue += precisionValues[i] * (inputValue - meanValues[i]) * m_WorkVector[i];
+
+  outputValue /= sumWeights;
 
   return outputValue;
 }
