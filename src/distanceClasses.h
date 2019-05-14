@@ -2,16 +2,15 @@
 // [[Rcpp::depends(RcppNumerical)]]
 
 #include <RcppNumerical.h>
+#include "mixtureClasses.h"
 
-using namespace Numer;
-
-class SquaredBayesDistance: public MFuncGrad
+class SquaredBayesDistance: public Numer::MFuncGrad
 {
 public:
   typedef std::vector<double> VectorType;
   typedef Eigen::VectorXd ParametersType;
 
-  double f_grad(Constvec& x, Refvec grad);
+  double f_grad(Numer::Constvec& x, Numer::Refvec grad);
 
   // Set observed mixtures and reference mixture
   void SetDataPoints(const Rcpp::List &inputData);
@@ -20,35 +19,25 @@ public:
   void SetQuadraturePoints(const VectorType &points) {m_QuadraturePoints = points;}
   void SetQuadratureWeights(const VectorType &weights) {m_QuadratureWeights = weights;}
 
+  double GetFirstMeanValue() {return m_FirstMixture.GetMean();}
+  double GetSecondMeanValue() {return m_SecondMixture.GetMean();}
+  double GetReferenceMeanValue() {return m_ReferenceMeanValue;}
+
 protected:
   void SetInputValues(const unsigned int input, const unsigned int index);
   unsigned int SetReferenceModel(const Rcpp::List &inputData);
-  double EvaluateSquaredDistance(
-      const VectorType &firstMeanValues, const VectorType &firstPrecisionValues, const VectorType &firstMixingValues,
-      const VectorType &secondMeanValues, const VectorType &secondPrecisionValues, const VectorType &secondMixingValues,
-      const VectorType &referenceMeanValues, const VectorType &referencePrecisionValues, const VectorType &referenceMixingValues,
-      double &jacobianValueWRTFirst, double &jacobianValueWRTReference
-  );
-  double EvaluateLogDensity(
-      const double inputValue,
-      const VectorType &meanValues,
-      const VectorType &precisionValues,
-      const VectorType &mixingValues
-  );
-  double EvaluateLogDensityJacobian(
-      const double inputValue,
-      const VectorType &meanValues,
-      const VectorType &precisionValues,
-      const VectorType &mixingValues
-  );
+  double EvaluateSquaredDistance();
 
 private:
-  VectorType m_FirstMeanValues, m_FirstPrecisionValues, m_FirstMixingValues;
-  VectorType m_SecondMeanValues, m_SecondPrecisionValues, m_SecondMixingValues;
+  GaussianMixture m_FirstMixture, m_SecondMixture;
+  GaussianMixture m_FirstMixtureCopy, m_SecondMixtureCopy;
   VectorType m_QuadraturePoints, m_QuadratureWeights;
   VectorType m_ReferenceMeanValues, m_ReferencePrecisionValues, m_ReferenceMixingValues;
+  double m_ReferenceMeanValue;
+  double m_FirstShiftDerivative, m_SecondShiftDerivative;
   VectorType m_WorkVector;
   Rcpp::DataFrame m_WorkTibble;
+  GaussianMixture m_WorkMixture;
   Rcpp::List m_DataPoints;
   unsigned int m_TotalNumberOfComponents;
 };

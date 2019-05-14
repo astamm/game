@@ -91,6 +91,10 @@ aligned_dist <- function(f, g, data, method = "L-BFGS-B", rule = 2) {
   mg <- sum(g$mixing * g$mean)
   mr <- sum(rmixings * rmeans)
 
+  # x0 <- c(mg - mf, mg - mr)
+  x0 <- c(mr - mf, mr - mg)
+  print(x0)
+
   # cost <- function(x) {
   #   cost_in <- function(xx) {
   #     GetSquaredDistance(f$mean + xx, f$precision, f$mixing, g$mean, g$precision, g$mixing, rmeans + x, rprecisions, rmixings, k, rule$x, rule$w, workvec)
@@ -99,11 +103,12 @@ aligned_dist <- function(f, g, data, method = "L-BFGS-B", rule = 2) {
   # }
   # optim(par = 0, fn = cost, method = method)
 
-  x0 <- c(mg - mf, mg - mr)
-  print(x0)
+
+  # cost <- function(x) {
+  #   GetSquaredDistance(f$mean + x[1], f$precision, f$mixing, g$mean, g$precision, g$mixing, rmeans + x[2], rprecisions, rmixings, k, rule$x, rule$w, workvec)
+  # }
   cost <- function(x) {
-    GetSquaredDistance(f$mean + x[1], f$precision, f$mixing, g$mean, g$precision, g$mixing, rmeans + x[2], rprecisions, rmixings, k, rule$x, rule$w, workvec)
+    GetSquaredDistance(f$mean + x[1], f$precision, f$mixing, g$mean + x[2], g$precision, g$mixing, rmeans, rprecisions, rmixings, k, rule$x, rule$w, workvec)
   }
-  print(cost(c(0, 0)))
   optim(par = x0, fn = cost, method = method)
 }

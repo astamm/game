@@ -1,10 +1,3 @@
-// [[Rcpp::depends(RcppEigen)]]
-// [[Rcpp::depends(RcppNumerical)]]
-
-#include <RcppNumerical.h>
-
-using namespace Numer;
-
 #include "clr.h"
 #include "distanceClasses.h"
 
@@ -181,9 +174,10 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
   sqDistance.SetQuadraturePoints(nodeValues);
   sqDistance.SetQuadratureWeights(weightValues);
 
+  double firstMeanValue, secondMeanValue;
+  double referenceMeanValue = sqDistance.GetReferenceMeanValue();
+
   SquaredBayesDistance::ParametersType x(2), grad;
-  x[0] = 0;
-  x[1] = 0;
   int maxit = 100;
   double eps_f = 1.0e-4;
 
@@ -195,21 +189,25 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
 
   for (unsigned int i = 0;i < numInputs - 1;++i)
   {
-    // if (i > 0)
-    //   continue;
+    if (i > 0)
+      continue;
 
     sqDistance.SetInput1(i);
+    firstMeanValue = sqDistance.GetFirstMeanValue();
 
     for (unsigned int j = i + 1;j < numInputs;++j)
     {
-      // if (j > 1)
-      //   continue;
+      if (j > 1)
+        continue;
 
       sqDistance.SetInput2(j);
+      secondMeanValue = sqDistance.GetSecondMeanValue();
+
+      x[0] = referenceMeanValue - firstMeanValue;
+      x[1] = referenceMeanValue - secondMeanValue;
+
       // double workScalar = sqDistance.f_grad(x, grad);
 
-      x[0] = 0;
-      x[1] = 0;
       double workScalar;
       int res = optim_lbfgs(sqDistance, x, workScalar, maxit, eps_f);
 
