@@ -1,3 +1,5 @@
+#pragma once
+
 #include <Rcpp.h>
 
 class GenericMixture
@@ -6,22 +8,26 @@ public:
   typedef std::vector<double> VectorType;
 
   virtual void SetInput(const Rcpp::DataFrame &inputData) = 0;
-  virtual double GetLogDensity(const double inputValue) = 0;
-  virtual double GetLogDensityShiftDerivative(const double inputValue) = 0;
+  virtual double GetLogDifference(const double inputValue, const GenericMixture &rhs) const = 0;
+  virtual double GetLogDensity(const double inputValue) const = 0;
+  virtual double GetLogDensityShiftDerivative(const double inputValue) const = 0;
 
   void SetNumberOfComponents(const unsigned int num) {m_NumberOfComponents = num;}
-  double GetNumberOfComponents() {return m_NumberOfComponents;}
+  double GetNumberOfComponents() const {return m_NumberOfComponents;}
 
   void SetMeanValues(const VectorType &x) {m_MeanValues = x;}
-  VectorType GetMeanValues() {return m_MeanValues;}
+  VectorType GetMeanValues() const {return m_MeanValues;}
 
   void SetPrecisionValues(const VectorType &x) {m_PrecisionValues = x;}
-  VectorType GetPrecisionValues() {return m_PrecisionValues;}
+  VectorType GetPrecisionValues() const {return m_PrecisionValues;}
 
   void SetMixingValues(const VectorType &x) {m_MixingValues = x;}
-  VectorType GetMixingValues() {return m_MixingValues;}
+  VectorType GetMixingValues() const {return m_MixingValues;}
 
   double GetMean();
+
+  GenericMixture() {}
+  virtual ~GenericMixture() {}
 
 protected:
   VectorType m_MeanValues, m_PrecisionValues, m_MixingValues;
@@ -32,9 +38,10 @@ class GaussianMixture: public GenericMixture
 {
 public:
   void SetInput(const Rcpp::DataFrame &inputData);
-  double GetLogDensity(const double inputValue);
-  double GetLogDensityShiftDerivative(const double inputValue);
+  virtual double GetLogDifference(const double inputValue, const GenericMixture &rhs) const;
+  double GetLogDensity(const double inputValue) const;
+  double GetLogDensityShiftDerivative(const double inputValue) const;
 
 private:
-  VectorType m_WorkVector;
+  mutable VectorType m_WorkVector;
 };

@@ -3,6 +3,7 @@
 
 #include <RcppNumerical.h>
 #include "mixtureClasses.h"
+#include "integrandClasses.h"
 
 class SquaredBayesDistance: public Numer::MFuncGrad
 {
@@ -23,6 +24,15 @@ public:
   double GetSecondMeanValue() {return m_SecondMixture.GetMean();}
   double GetReferenceMeanValue() {return m_ReferenceMeanValue;}
 
+  void SetLowerBound(const double lb) {m_LowerBound = lb;}
+  void SetUpperBound(const double ub) {m_UpperBound = ub;}
+
+  SquaredBayesDistance() : Numer::MFuncGrad()
+  {
+    m_LowerBound = -2500.0;
+    m_UpperBound =  2500.0;
+  }
+
 protected:
   void SetInputValues(const unsigned int input, const unsigned int index);
   unsigned int SetReferenceModel(const Rcpp::List &inputData);
@@ -40,4 +50,19 @@ private:
   GaussianMixture m_WorkMixture;
   Rcpp::List m_DataPoints;
   unsigned int m_TotalNumberOfComponents;
+
+  LogDifference m_LDFunction;
+  SquaredLogDifference m_SLDFunction;
+  LogDifferenceFirstDerivative m_LDFDFunction;
+  SquaredLogDifferenceFirstDerivative m_SLDFDFunction;
+  LogDifferenceSecondDerivative m_LDSDFunction;
+  SquaredLogDifferenceSecondDerivative m_SLDSDFunction;
+
+  double m_LowerBound, m_UpperBound;
+  double m_ErrorEstimate;
+  int m_ErrorCode;
+  const int m_NumberOfSubdivisions = 100;
+  const double m_AbsoluteTolerance = 1e-8;
+  const double m_RelativeTolerance = 1e-6;
+  const Numer::Integrator<double>::QuadratureRule m_QuadratureRule = Numer::Integrator<double>::GaussKronrod21;
 };

@@ -70,14 +70,6 @@ Rcpp::NumericVector GetMean(
   return outputValues;
 }
 
-Rcpp::NumericVector GetCovarianceKernel(
-    const Rcpp::NumericVector &inputValues,
-    const Rcpp::List &inputData)
-{
-  // (1/(n-1)) \sum_i \int_s (x_i(t) - xbar(t)) (x_i(s) - xbar(s)) f(s) ds
-  //
-}
-
 Rcpp::NumericVector GetSquaredDistancesToMean(
     const Rcpp::List &inputData,
     const Rcpp::LogicalVector &subsetValues,
@@ -185,11 +177,9 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
 
   Rcpp::NumericVector outputValues(numInputs * (numInputs - 1) / 2);
 
-  // Now integrate to get distances
-
   for (unsigned int i = 0;i < numInputs - 1;++i)
   {
-    if (i > 0)
+    if (i != 44)
       continue;
 
     sqDistance.SetInput1(i);
@@ -197,7 +187,7 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
 
     for (unsigned int j = i + 1;j < numInputs;++j)
     {
-      if (j > 1)
+      if (j != 90)
         continue;
 
       sqDistance.SetInput2(j);
@@ -206,10 +196,15 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
       x[0] = referenceMeanValue - firstMeanValue;
       x[1] = referenceMeanValue - secondMeanValue;
 
+      Rcpp::Rcout << x << std::endl;
+
       // double workScalar = sqDistance.f_grad(x, grad);
 
       double workScalar;
       int res = optim_lbfgs(sqDistance, x, workScalar, maxit, eps_f);
+
+      Rcpp::Rcout << x << std::endl;
+      Rcpp::Rcout << res << std::endl;
 
       outputValues[numInputs * i - (i + 1) * i / 2 + j - i - 1] = workScalar;
     }
