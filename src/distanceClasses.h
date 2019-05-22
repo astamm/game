@@ -11,8 +11,6 @@ public:
   typedef std::vector<double> VectorType;
   typedef Eigen::VectorXd ParametersType;
 
-  void InitializeReferenceModel();
-
   double f_grad(Numer::Constvec& x, Numer::Refvec grad);
 
   void SetInput1(const Rcpp::DataFrame &x);

@@ -78,37 +78,21 @@ evaluate_at_nodes <- function(f, ref_means, ref_precisions, rule = ghRules[[20]]
 }
 
 #' @export
-aligned_dist <- function(f, g, data, method = "L-BFGS-B", rule = 2) {
+aligned_dist <- function(f, g, method = "L-BFGS-B", rule = 2) {
   rule <- ghRules[[rule]]
-  n <- length(data)
-  rmeans <- purrr::map(data, "mean") %>% purrr::reduce(c)
-  rprecisions <- purrr::map(data, "precision") %>% purrr::reduce(c)
-  rmixings <- (purrr::map(data, "mixing") %>% purrr::reduce(c)) / n
-  k <- length(rmeans)
+  rprecisions <- c(f$precision, g$precision)
+  rmixings <- c(f$mixing, g$mixing) / 2
+  k <- length(rprecisions)
   workvec <- double(0)
 
   mf <- sum(f$mixing * f$mean)
   mg <- sum(g$mixing * g$mean)
-  mr <- sum(rmixings * rmeans)
+  x0 <- mf - mg
 
-  # x0 <- c(mg - mf, mg - mr)
-  x0 <- c(mr - mf, mr - mg)
-  print(x0)
-
-  # cost <- function(x) {
-  #   cost_in <- function(xx) {
-  #     GetSquaredDistance(f$mean + xx, f$precision, f$mixing, g$mean, g$precision, g$mixing, rmeans + x, rprecisions, rmixings, k, rule$x, rule$w, workvec)
-  #   }
-  #   -optim(par = 0, fn = cost_in, method = method)$value
-  # }
-  # optim(par = 0, fn = cost, method = method)
-
-
-  # cost <- function(x) {
-  #   GetSquaredDistance(f$mean + x[1], f$precision, f$mixing, g$mean, g$precision, g$mixing, rmeans + x[2], rprecisions, rmixings, k, rule$x, rule$w, workvec)
-  # }
   cost <- function(x) {
-    GetSquaredDistance(f$mean + x[1], f$precision, f$mixing, g$mean + x[2], g$precision, g$mixing, rmeans, rprecisions, rmixings, k, rule$x, rule$w, workvec)
+    gmeans <- g$mean + x[1]
+    rmeans <- c(f$mean, gmeans)
+    GetSquaredDistance(f$mean, f$precision, f$mixing, gmeans, g$precision, g$mixing, rmeans, rprecisions, rmixings, k, rule$x, rule$w, workvec)
   }
   optim(par = x0, fn = cost, method = method)
 }
