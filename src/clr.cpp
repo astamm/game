@@ -162,14 +162,12 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
     const std::vector<double> &weightValues)
 {
   SquaredBayesDistance sqDistance;
-  sqDistance.SetDataPoints(inputData);
   sqDistance.SetQuadraturePoints(nodeValues);
   sqDistance.SetQuadratureWeights(weightValues);
-
+  Rcpp::DataFrame workTibble;
   double firstMeanValue, secondMeanValue;
-  double referenceMeanValue = sqDistance.GetReferenceMeanValue();
 
-  SquaredBayesDistance::ParametersType x(2), grad;
+  SquaredBayesDistance::ParametersType x(1), grad;
   int maxit = 100;
   double eps_f = 1.0e-4;
 
@@ -182,19 +180,22 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
     // if (i != 44)
     //   continue;
 
-    sqDistance.SetInput1(i);
-    firstMeanValue = sqDistance.GetFirstMeanValue();
-
     for (unsigned int j = i + 1;j < numInputs;++j)
     {
       // if (j != 90)
       //   continue;
 
-      sqDistance.SetInput2(j);
+      sqDistance.InitializeReferenceModel();
+
+      workTibble = inputData[i];
+      sqDistance.SetInput1(workTibble);
+      firstMeanValue = sqDistance.GetFirstMeanValue();
+
+      workTibble = inputData[j];
+      sqDistance.SetInput2(workTibble);
       secondMeanValue = sqDistance.GetSecondMeanValue();
 
-      x[0] = referenceMeanValue - firstMeanValue;
-      x[1] = referenceMeanValue - secondMeanValue;
+      x[0] = firstMeanValue - secondMeanValue;
 
       // Rcpp::Rcout << x << std::endl;
 

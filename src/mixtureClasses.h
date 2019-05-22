@@ -8,7 +8,6 @@ public:
   typedef std::vector<double> VectorType;
 
   virtual void SetInput(const Rcpp::DataFrame &inputData) = 0;
-  virtual double GetLogDifference(const double inputValue, const GenericMixture &rhs) const = 0;
   virtual double GetLogDensity(const double inputValue) const = 0;
   virtual double GetLogDensityShiftDerivative(const double inputValue) const = 0;
 
@@ -38,7 +37,6 @@ class GaussianMixture: public GenericMixture
 {
 public:
   void SetInput(const Rcpp::DataFrame &inputData);
-  virtual double GetLogDifference(const double inputValue, const GenericMixture &rhs) const;
   double GetLogDensity(const double inputValue) const;
   double GetLogDensityShiftDerivative(const double inputValue) const;
 

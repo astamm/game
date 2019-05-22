@@ -18,62 +18,6 @@ void GaussianMixture::SetInput(const Rcpp::DataFrame &inputData)
   this->SetMixingValues(Rcpp::as<VectorType>(inputData["mixing"]));
 }
 
-double GaussianMixture::GetLogDifference(const double inputValue, const GenericMixture &rhs) const
-{
-  m_WorkVector.resize(m_NumberOfComponents + rhs.GetNumberOfComponents());
-
-  unsigned int indexOfMaximalExponent = 0;
-  double maximalExponent = 0.0;
-
-  for (unsigned int i = 0;i < m_NumberOfComponents;++i)
-  {
-    double workValue = std::log(m_MixingValues[i]);
-    workValue += 0.5 * std::log(m_PrecisionValues[i] / (2.0 * M_PI));
-    workValue -= m_PrecisionValues[i] * (inputValue - m_MeanValues[i]) * (inputValue - m_MeanValues[i]) / 2.0;
-
-    // if (workValue < maximalExponent || i == 0)
-    // {
-    //   maximalExponent = workValue;
-    //   indexOfMaximalExponent = i;
-    // }
-
-    m_WorkVector[i] = workValue;
-  }
-
-  for (unsigned int i = 0;i < rhs.GetNumberOfComponents();++i)
-  {
-    double workValue = std::log(rhs.GetMixingValues()[i]);
-    workValue += 0.5 * std::log(rhs.GetPrecisionValues()[i] / (2.0 * M_PI));
-    workValue -= rhs.GetPrecisionValues()[i] * (inputValue - rhs.GetMeanValues()[i]) * (inputValue - rhs.GetMeanValues()[i]) / 2.0;
-
-    if (workValue > maximalExponent || i == 0)
-    {
-      maximalExponent = workValue;
-      indexOfMaximalExponent = i + m_NumberOfComponents;
-    }
-
-    m_WorkVector[i + m_NumberOfComponents] = workValue;
-  }
-
-  double numerValue = -1.0;
-  for (unsigned int i = 0;i < m_NumberOfComponents;++i)
-   numerValue += std::exp(m_WorkVector[i] - maximalExponent);
-
-  double denomValue = 1.0;
-  for (unsigned int i = 0;i < rhs.GetNumberOfComponents();++i)
-  {
-    if (i + m_NumberOfComponents == indexOfMaximalExponent)
-      continue;
-    double workValue = std::exp(m_WorkVector[i + m_NumberOfComponents] - maximalExponent);
-    numerValue -= workValue;
-    denomValue += workValue;
-  }
-
-  Rcpp::Rcout << numerValue << " " << denomValue << std::endl;
-
-  return std::log1p(numerValue / denomValue);
-}
-
 double GaussianMixture::GetLogDensity(const double inputValue) const
 {
   m_WorkVector.resize(m_NumberOfComponents);
