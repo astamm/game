@@ -166,10 +166,10 @@ double SquaredBayesDistance::EvaluateSquaredDistance()
       // if (std::abs(inputValue) > 2500.0)
       //   continue;
 
-      // double logValue1 = m_FirstMixtureCopy.GetLogDensity(inputValue);
-      // double logValue2 = m_SecondMixtureCopy.GetLogDensity(inputValue);
-      // double logDifference = logValue1 - logValue2;
-      double logDifference = m_FirstMixtureCopy.GetLogDifference(inputValue, m_SecondMixtureCopy);
+      double logValue1 = m_FirstMixtureCopy.GetLogDensity(inputValue);
+      double logValue2 = m_SecondMixtureCopy.GetLogDensity(inputValue);
+      double logDifference = logValue1 - logValue2;
+      // double logDifference = m_FirstMixtureCopy.GetLogDifference(inputValue, m_SecondMixtureCopy);
 
       // if (logValue1 < 1.0e-16 || logValue2 < 1.0e-16)
       //   continue;
