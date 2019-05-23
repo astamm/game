@@ -3,11 +3,11 @@
 
 double SquaredBayesDistance::f_grad(Numer::Constvec& x, Numer::Refvec grad)
 {
-  m_SecondMixtureCopy = m_SecondMixture;
-  m_WorkVector = m_SecondMixture.GetMeanValues();
-  for (unsigned int i = 0;i < m_SecondMixture.GetNumberOfComponents();++i)
-    m_WorkVector[i] += x[0];
-  m_SecondMixtureCopy.SetMeanValues(m_WorkVector);
+  m_WorkMixture = m_SecondMixture;
+  m_WorkMeanValues = m_SecondMeanValues;
+  for (unsigned int i = 0;i < m_SecondNumberOfComponents;++i)
+    m_WorkMeanValues[i] += x[0];
+  m_WorkMixture.SetMeanValues(m_WorkMeanValues);
 
   double costValue = this->EvaluateSquaredDistance();
 
@@ -23,49 +23,20 @@ double SquaredBayesDistance::f_grad(Numer::Constvec& x, Numer::Refvec grad)
 
 void SquaredBayesDistance::SetInput1(const Rcpp::DataFrame &x)
 {
-  // First, reinitialize reference
-  m_ReferenceMeanValues.clear();
-  m_ReferencePrecisionValues.clear();
-  m_ReferenceMixingValues.clear();
-  m_ReferenceNumberOfComponents = 0;
-
   m_FirstMixture.SetInput(x);
-
-  unsigned int numComponents = m_FirstMixture.GetNumberOfComponents();
-  m_ReferenceNumberOfComponents += numComponents;
-
-  m_WorkVector = m_FirstMixture.GetMeanValues();
-  m_ReferenceMeanValues.insert(m_ReferenceMeanValues.end(), m_WorkVector.begin(), m_WorkVector.end());
-
-  m_WorkVector = m_FirstMixture.GetPrecisionValues();
-  m_ReferencePrecisionValues.insert(m_ReferencePrecisionValues.end(), m_WorkVector.begin(), m_WorkVector.end());
-
-  m_WorkVector = m_FirstMixture.GetMixingValues();
-  for (unsigned int i = 0;i < numComponents;++i)
-    m_WorkVector[i] /= 2.0;
-  m_ReferenceMixingValues.insert(m_ReferenceMixingValues.end(), m_WorkVector.begin(), m_WorkVector.end());
+  m_FirstNumberOfComponents = m_FirstMixture.GetNumberOfComponents();
+  m_FirstMeanValues = m_FirstMixture.GetMeanValues();
+  m_FirstPrecisionValues = m_FirstMixture.GetPrecisionValues();
+  m_FirstMixingValues = m_FirstMixture.GetMixingValues();
 }
 
 void SquaredBayesDistance::SetInput2(const Rcpp::DataFrame &x)
 {
   m_SecondMixture.SetInput(x);
-  unsigned int firstNumComponents = m_FirstMixture.GetNumberOfComponents();
-  unsigned int secondNumComponents = m_SecondMixture.GetNumberOfComponents();
-  m_ReferenceNumberOfComponents = firstNumComponents + secondNumComponents;
-  m_ReferenceMeanValues.resize(m_ReferenceNumberOfComponents);
-  m_ReferencePrecisionValues.resize(m_ReferenceNumberOfComponents);
-  m_ReferenceMixingValues.resize(m_ReferenceNumberOfComponents);
-
-  m_WorkVector = m_SecondMixture.GetMeanValues();
-  m_ReferenceMeanValues.insert(m_ReferenceMeanValues.begin() + firstNumComponents, m_WorkVector.begin(), m_WorkVector.end());
-
-  m_WorkVector = m_SecondMixture.GetPrecisionValues();
-  m_ReferencePrecisionValues.insert(m_ReferencePrecisionValues.begin() + firstNumComponents, m_WorkVector.begin(), m_WorkVector.end());
-
-  m_WorkVector = m_SecondMixture .GetMixingValues();
-  for (unsigned int i = 0;i < secondNumComponents;++i)
-    m_WorkVector[i] /= 2.0;
-  m_ReferenceMixingValues.insert(m_ReferenceMixingValues.begin() + firstNumComponents, m_WorkVector.begin(), m_WorkVector.end());
+  m_SecondNumberOfComponents = m_SecondMixture.GetNumberOfComponents();
+  m_SecondMeanValues = m_SecondMixture.GetMeanValues();
+  m_SecondPrecisionValues = m_SecondMixture.GetPrecisionValues();
+  m_SecondMixingValues = m_SecondMixture.GetMixingValues();
 }
 
 double SquaredBayesDistance::EvaluateSquaredDistance()
@@ -79,9 +50,11 @@ double SquaredBayesDistance::EvaluateSquaredDistance()
   double totalLDJIntegral = 0.0;
   double totalJIntegral = 0.0;
 
-  for (unsigned int i = 0;i < m_ReferenceNumberOfComponents;++i)
+  for (unsigned int i = 0;i < m_FirstNumberOfComponents + m_SecondNumberOfComponents;++i)
   {
-    double refMeanValue = (i < m_FirstMixture.GetNumberOfComponents()) ? m_ReferenceMeanValues[i] : m_SecondMixtureCopy.GetMeanValues()[i-m_FirstMixture.GetNumberOfComponents()];
+    double referenceMeanValue = (i < m_FirstNumberOfComponents) ? m_FirstMeanValues[i] : m_WorkMeanValues[i-m_FirstNumberOfComponents];
+    double referencefPrecisionValue = (i < m_FirstNumberOfComponents) ? m_FirstPrecisionValues[i] : m_SecondPrecisionValues[i-m_FirstNumberOfComponents];
+    double referenceMixingValue = ((i < m_FirstNumberOfComponents) ? m_FirstMixingValues[i] : m_SecondMixingValues[i-m_FirstNumberOfComponents]) / 2.0;
 
     double  sldIntegral = 0.0;
     double   ldIntegral = 0.0;
@@ -90,39 +63,37 @@ double SquaredBayesDistance::EvaluateSquaredDistance()
     double  ldjIntegral = 0.0;
     double    jIntegral = 0.0;
 
-    double referenceWeight = m_ReferenceMixingValues[i];
-
     for (unsigned int j = 0;j < numPoints;++j)
     {
       double quadWeight = m_QuadratureWeights[j];
-      double quadPoint = refMeanValue + std::sqrt(2.0 / m_ReferencePrecisionValues[i]) * m_QuadraturePoints[j];
+      double quadPoint = referenceMeanValue + std::sqrt(2.0 / referencefPrecisionValue) * m_QuadraturePoints[j];
 
       double logValue1 = m_FirstMixture.GetLogDensity(quadPoint);
-      double logValue2 = m_SecondMixtureCopy.GetLogDensity(quadPoint);
+      double logValue2 = m_WorkMixture.GetLogDensity(quadPoint);
       double logDifference = logValue1 - logValue2;
-      double shiftLDJacobian = m_SecondMixtureCopy.GetLogDensityShiftDerivative(quadPoint);
+      double shiftLDJacobian = m_WorkMixture.GetLogDensityShiftDerivative(quadPoint);
 
       sldIntegral += quadWeight * logDifference * logDifference;
       ldIntegral += quadWeight * logDifference;
       jldIntegral += quadWeight * logDifference * shiftLDJacobian;
-      if (i >= m_FirstMixture.GetNumberOfComponents())
+      if (i >= m_FirstNumberOfComponents)
       {
-        double workScalar = quadWeight * logDifference * (quadPoint - refMeanValue);
+        double workScalar = quadWeight * logDifference * (quadPoint - referenceMeanValue);
         sldjIntegral += logDifference * workScalar;
         ldjIntegral += workScalar;
       }
       jIntegral += quadWeight * shiftLDJacobian;
     }
 
-    totalSLDIntegral += referenceWeight * sldIntegral;
-    totalLDIntegral += referenceWeight * ldIntegral;
-    totalJLDIntegral += referenceWeight * jldIntegral;
-    if (i >= m_FirstMixture.GetNumberOfComponents())
+    totalSLDIntegral += referenceMixingValue * sldIntegral;
+    totalLDIntegral += referenceMixingValue * ldIntegral;
+    totalJLDIntegral += referenceMixingValue * jldIntegral;
+    if (i >= m_FirstNumberOfComponents)
     {
-      totalSLDJIntegral += m_ReferencePrecisionValues[i] * referenceWeight * sldjIntegral;
-      totalLDJIntegral += m_ReferencePrecisionValues[i] * referenceWeight * ldjIntegral;
+      totalSLDJIntegral += referencefPrecisionValue * referenceMixingValue * sldjIntegral;
+      totalLDJIntegral += referencefPrecisionValue * referenceMixingValue * ldjIntegral;
     }
-    totalJIntegral += referenceWeight * jIntegral;
+    totalJIntegral += referenceMixingValue * jIntegral;
   }
 
   double costValue = totalSLDIntegral / std::sqrt(M_PI) - totalLDIntegral * totalLDIntegral / M_PI;

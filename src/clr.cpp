@@ -167,10 +167,11 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
   Rcpp::DataFrame workTibble;
   double firstMeanValue, secondMeanValue;
 
-  SquaredBayesDistance::ParametersType x(1), grad;
+  SquaredBayesDistance::ParametersType x(1);
+  // SquaredBayesDistance::ParametersType grad(1);
   int maxit = 100;
-  double eps_f = 1.0e-2;
-  double eps_g = 1.0e-2;
+  double eps_f = 1.0e-5;
+  double eps_g = 1.0e-5;
 
   unsigned int numInputs = inputData.size();
 
@@ -183,7 +184,7 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
 
     workTibble = inputData[i];
     sqDistance.SetInput1(workTibble);
-    firstMeanValue = sqDistance.GetFirstMeanValue();
+    firstMeanValue = sqDistance.GetMean1();
 
     for (unsigned int j = i + 1;j < numInputs;++j)
     {
@@ -192,7 +193,7 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
 
       workTibble = inputData[j];
       sqDistance.SetInput2(workTibble);
-      secondMeanValue = sqDistance.GetSecondMeanValue();
+      secondMeanValue = sqDistance.GetMean2();
 
       x[0] = firstMeanValue - secondMeanValue;
 
@@ -206,7 +207,7 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
       if (res < 0)
         Rcpp::stop("Optimization failed when computing distances.");
 
-      // Rcpp::Rcout << x << std::endl;
+      Rcpp::Rcout << x << std::endl;
       // Rcpp::Rcout << res << std::endl;
 
       outputValues[numInputs * i - (i + 1) * i / 2 + j - i - 1] = workScalar;
