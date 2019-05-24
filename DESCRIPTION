@@ -18,7 +18,7 @@ RoxygenNote: 6.1.1
 Collate: 
     'alignment.R'
     'dist.R'
-    'game.R'
+    'game-package.R'
     'gmd.R'
     'kmeans.R'
     'RcppExports.R'
@@ -32,10 +32,8 @@ Imports:
     rlang,
     purrr,
     Rcpp,
-    RcppNumerical,
     dplyr,
     tidyr
 LinkingTo: 
     Rcpp,
-    RcppEigen,
-    RcppNumerical
+    RcppArmadillo

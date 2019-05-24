@@ -1,4 +1,6 @@
-#include <Rcpp.h>
+#pragma once
+
+#include <RcppArmadillo.h>
 
 // [[Rcpp::export]]
 Rcpp::NumericVector GetMixtureDensity(

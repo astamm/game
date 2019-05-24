@@ -1,5 +1,105 @@
+// [[Rcpp::depends(RcppArmadillo)]]
 #include "clr.h"
-#include "distanceClasses.h"
+#include <optim.hpp>
+#include "mixtureClasses.h"
+
+struct FunctionData
+{
+  GaussianMixture m_FirstMixture;
+  GaussianMixture m_SecondMixture;
+  std::vector<double> m_QuadraturePoints;
+  std::vector<double> m_QuadratureWeights;
+};
+
+double ComputeSquaredDistance(const arma::vec& inputValues, arma::vec* gradientValues, void* optionalData)
+{
+  FunctionData* fData = reinterpret_cast<FunctionData*>(optionalData);
+
+  GaussianMixture firstMixture = fData->m_FirstMixture;
+  GaussianMixture secondMixture = fData->m_SecondMixture;
+  std::vector<double> quadraturePoints = fData->m_QuadraturePoints;
+  std::vector<double> quadratureWeights = fData->m_QuadratureWeights;
+  std::vector<double> firstMeanValues = firstMixture.GetMeanValues();
+  std::vector<double> firstPrecisionValues = firstMixture.GetPrecisionValues();
+  std::vector<double> firstMixingValues = firstMixture.GetMixingValues();
+  std::vector<double> secondMeanValues = secondMixture.GetMeanValues();
+  std::vector<double> secondPrecisionValues = secondMixture.GetPrecisionValues();
+  std::vector<double> secondMixingValues = secondMixture.GetMixingValues();
+  unsigned int firstNumberOfComponents = firstMixture.GetNumberOfComponents();
+  unsigned int secondNumberOfComponents = secondMixture.GetNumberOfComponents();
+
+  for (unsigned int i = 0;i < secondNumberOfComponents;++i)
+    secondMeanValues[i] += inputValues[0];
+
+  secondMixture.SetMeanValues(secondMeanValues);
+
+  unsigned int numPoints = quadraturePoints.size();
+
+  double totalSLDIntegral = 0.0;
+  double totalLDIntegral = 0.0;
+  double totalJLDIntegral = 0.0;
+  double totalSLDJIntegral = 0.0;
+  double totalLDJIntegral = 0.0;
+  double totalJIntegral = 0.0;
+
+  for (unsigned int i = 0;i < firstNumberOfComponents + secondNumberOfComponents;++i)
+  {
+    double referenceMeanValue = (i < firstNumberOfComponents) ? firstMeanValues[i] : secondMeanValues[i-firstNumberOfComponents];
+    double referencefPrecisionValue = (i < firstNumberOfComponents) ? firstPrecisionValues[i] : secondPrecisionValues[i-firstNumberOfComponents];
+    double referenceMixingValue = ((i < firstNumberOfComponents) ? firstMixingValues[i] : secondMixingValues[i-firstNumberOfComponents]) / 2.0;
+
+    double  sldIntegral = 0.0;
+    double   ldIntegral = 0.0;
+    double  jldIntegral = 0.0;
+    double sldjIntegral = 0.0;
+    double  ldjIntegral = 0.0;
+    double    jIntegral = 0.0;
+
+    for (unsigned int j = 0;j < numPoints;++j)
+    {
+      double quadWeight = quadratureWeights[j];
+      double quadPoint = referenceMeanValue + std::sqrt(2.0 / referencefPrecisionValue) * quadraturePoints[j];
+
+      double logValue1 = firstMixture.GetLogDensity(quadPoint);
+      double logValue2 = secondMixture.GetLogDensity(quadPoint);
+      double logDifference = logValue1 - logValue2;
+      double shiftLDJacobian = secondMixture.GetLogDensityShiftDerivative(quadPoint);
+
+      sldIntegral += quadWeight * logDifference * logDifference;
+      ldIntegral += quadWeight * logDifference;
+      jldIntegral += quadWeight * logDifference * shiftLDJacobian;
+      if (i >= firstNumberOfComponents)
+      {
+        double workScalar = quadWeight * logDifference * (quadPoint - referenceMeanValue);
+        sldjIntegral += logDifference * workScalar;
+        ldjIntegral += workScalar;
+      }
+      jIntegral += quadWeight * shiftLDJacobian;
+    }
+
+    totalSLDIntegral += referenceMixingValue * sldIntegral;
+    totalLDIntegral += referenceMixingValue * ldIntegral;
+    totalJLDIntegral += referenceMixingValue * jldIntegral;
+    if (i >= firstNumberOfComponents)
+    {
+      totalSLDJIntegral += referencefPrecisionValue * referenceMixingValue * sldjIntegral;
+      totalLDJIntegral += referencefPrecisionValue * referenceMixingValue * ldjIntegral;
+    }
+    totalJIntegral += referenceMixingValue * jIntegral;
+  }
+
+  double costValue = totalSLDIntegral / std::sqrt(M_PI) - totalLDIntegral * totalLDIntegral / M_PI;
+
+  double shiftDerivative = -2.0 * totalJLDIntegral;
+  shiftDerivative += totalSLDJIntegral;
+  shiftDerivative /= std::sqrt(M_PI);
+  shiftDerivative -= 2.0 * totalLDIntegral * (totalLDJIntegral - totalJIntegral) / M_PI;
+
+  if (gradientValues)
+    (*gradientValues)[0] = shiftDerivative;
+
+  return costValue;
+}
 
 Rcpp::NumericVector GetMixtureDensity(
     const Rcpp::NumericVector &inputValues,
@@ -161,53 +261,46 @@ Rcpp::NumericVector GetSquaredDistanceMatrix(
     const std::vector<double> &nodeValues,
     const std::vector<double> &weightValues)
 {
-  SquaredBayesDistance sqDistance;
-  sqDistance.SetQuadraturePoints(nodeValues);
-  sqDistance.SetQuadratureWeights(weightValues);
   Rcpp::DataFrame workTibble;
+  GaussianMixture workMixture;
+  arma::vec x(1), grad(1);
   double firstMeanValue, secondMeanValue;
-
-  SquaredBayesDistance::ParametersType x(1);
-  // SquaredBayesDistance::ParametersType grad(1);
-  int maxit = 100;
-  double eps_f = 1.0e-5;
-  double eps_g = 1.0e-5;
-
   unsigned int numInputs = inputData.size();
-
+  FunctionData fData;
+  fData.m_QuadraturePoints = nodeValues;
+  fData.m_QuadratureWeights = weightValues;
   Rcpp::NumericVector outputValues(numInputs * (numInputs - 1) / 2);
 
   for (unsigned int i = 0;i < numInputs - 1;++i)
   {
-    // if (i != 44)
-    //   continue;
+    if (i != 125)
+      continue;
 
     workTibble = inputData[i];
-    sqDistance.SetInput1(workTibble);
-    firstMeanValue = sqDistance.GetMean1();
+    workMixture.SetInput(workTibble);
+    fData.m_FirstMixture = workMixture;
+    firstMeanValue = workMixture.GetMean();
 
     for (unsigned int j = i + 1;j < numInputs;++j)
     {
-      // if (j != 90)
-      //   continue;
+      if (j != 126)
+        continue;
 
       workTibble = inputData[j];
-      sqDistance.SetInput2(workTibble);
-      secondMeanValue = sqDistance.GetMean2();
+      workMixture.SetInput(workTibble);
+      fData.m_SecondMixture = workMixture;
+      secondMeanValue = workMixture.GetMean();
 
       x[0] = firstMeanValue - secondMeanValue;
 
-      // Rcpp::Rcout << x << std::endl;
+      bool success = optim::lbfgs(x, ComputeSquaredDistance, &fData);
 
-      // double workScalar = sqDistance.f_grad(x, grad);
-
-      double workScalar;
-      int res = optim_lbfgs(sqDistance, x, workScalar, maxit, eps_f, eps_g);
-
-      if (res < 0)
+      if (!success)
         Rcpp::stop("Optimization failed when computing distances.");
 
-      Rcpp::Rcout << x << std::endl;
+      double workScalar = ComputeSquaredDistance(x, &grad, &fData);
+
+      // Rcpp::Rcout << xx << std::endl;
       // Rcpp::Rcout << res << std::endl;
 
       outputValues[numInputs * i - (i + 1) * i / 2 + j - i - 1] = workScalar;
