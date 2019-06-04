@@ -27,13 +27,14 @@ Collate:
     'stat.R'
     'subset.R'
     'utils.R'
+    'utils-pipe.R'
     'zzz.R'
 Imports: 
     rlang,
     purrr,
     Rcpp,
     dplyr,
-    tidyr
+    tidyr,
+    magrittr
 LinkingTo: 
-    Rcpp,
-    RcppArmadillo
+    Rcpp

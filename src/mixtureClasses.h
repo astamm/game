@@ -1,6 +1,6 @@
 #pragma once
 
-#include <RcppArmadillo.h>
+#include <Rcpp.h>
 
 class GenericMixture
 {
@@ -24,6 +24,7 @@ public:
   VectorType GetMixingValues() const {return m_MixingValues;}
 
   double GetMean();
+  double GetPrecision();
 
   GenericMixture() {}
   virtual ~GenericMixture() {}

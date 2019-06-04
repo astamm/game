@@ -10,6 +10,21 @@ double GenericMixture::GetMean()
   return meanValue;
 }
 
+double GenericMixture::GetPrecision()
+{
+  double mom1 = 0.0;
+  double mom2 = 0.0;
+
+  for (unsigned int i = 0;i < m_NumberOfComponents;++i)
+  {
+    double meanVal = m_MeanValues[i];
+    mom1 += m_MixingValues[i] * meanVal;
+    mom2 += m_MixingValues[i] * (1.0 / m_PrecisionValues[i] + meanVal * meanVal);
+  }
+
+  return 1.0 / (mom2 - mom1 * mom1);
+}
+
 void GaussianMixture::SetInput(const Rcpp::DataFrame &inputData)
 {
   this->SetNumberOfComponents(inputData.nrows());
